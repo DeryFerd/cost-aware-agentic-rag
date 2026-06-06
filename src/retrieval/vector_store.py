@@ -3,21 +3,27 @@
 from __future__ import annotations
 
 import chromadb
-from chromadb.config import Settings as ChromaSettings
+from sentence_transformers import SentenceTransformer
 
 from src.config import settings
 
+# Global model instance (lazy-loaded)
+_embedding_model: SentenceTransformer | None = None
+
+
+def _get_model() -> SentenceTransformer:
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = SentenceTransformer(settings.embedding_model)
+    return _embedding_model
+
 
 class VectorStore:
-    """ChromaDB-backed vector store with Ollama embeddings."""
+    """ChromaDB-backed vector store with sentence-transformers embeddings."""
 
     def __init__(self, collection_name: str = "sec_10k") -> None:
-        self.client = chromadb.Client(
-            ChromaSettings(
-                chroma_db_impl="duckdb+parquet",
-                persist_directory=str(settings.chroma_path),
-                anonymized_telemetry=False,
-            )
+        self.client = chromadb.PersistentClient(
+            path=str(settings.chroma_path),
         )
         self.collection = self.client.get_or_create_collection(
             name=collection_name,
@@ -25,18 +31,10 @@ class VectorStore:
         )
 
     def _embed(self, texts: list[str]) -> list[list[float]]:
-        """Embed texts using Ollama."""
-        from ollama import Client
-
-        client = Client(
-            host=settings.ollama_host,
-            headers={"Authorization": f"Bearer {settings.ollama_api_key}"},
-        )
-        embeddings = []
-        for text in texts:
-            resp = client.embeddings(model=settings.embedding_model, prompt=text)
-            embeddings.append(resp["embedding"])
-        return embeddings
+        """Embed texts using sentence-transformers (local)."""
+        model = _get_model()
+        embeddings = model.encode(texts, show_progress_bar=False)
+        return embeddings.tolist()
 
     def add_documents(self, chunks: list[dict], ticker: str) -> int:
         """Add document chunks to the vector store."""

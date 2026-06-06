@@ -53,7 +53,13 @@ class CostTracker:
     def summary(self) -> dict:
         history = self.load_history()
         if not history:
-            return {"total_queries": 0, "total_cost": 0.0}
+            return {
+                "total_queries": 0,
+                "total_cost": 0.0,
+                "avg_cost_per_query": 0.0,
+                "cost_by_model": {},
+                "avg_latency_ms": 0.0,
+            }
 
         total_cost = sum(r.cost_usd for r in history)
         model_costs: dict[str, float] = {}

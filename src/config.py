@@ -19,12 +19,12 @@ class Settings(BaseSettings):
     # ── Ollama Cloud ────────────────────────────────────────────────
     ollama_host: str = "https://ollama.com"
     ollama_api_key: str = ""
-    ollama_simple_model: str = "qwen3.5"
-    ollama_complex_model: str = "deepseek-v4-flash"
+    ollama_simple_model: str = "gemma3:4b"
+    ollama_complex_model: str = "gemma3:27b"
 
-    # ── Embedding ───────────────────────────────────────────────────
-    embedding_model: str = "nomic-embed-text"
-    embedding_dim: int = 768
+    # ── Embedding (local sentence-transformers) ─────────────────────
+    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_dim: int = 384
 
     # ── Retrieval ───────────────────────────────────────────────────
     chroma_path: Path = indexes_dir / "chroma"

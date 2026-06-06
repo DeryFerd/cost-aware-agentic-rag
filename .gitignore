@@ -36,3 +36,4 @@ Thumbs.db
 
 # Langfuse
 langfuse_data/
+src/cost_aware_agentic_rag.egg-info/
