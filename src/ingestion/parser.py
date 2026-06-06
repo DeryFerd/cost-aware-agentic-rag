@@ -78,10 +78,35 @@ def parse_document(file_path: Path) -> dict:
 
 
 def chunk_document(file_path: Path) -> list[dict]:
-    """Parse and chunk a document using Docling HybridChunker.
+    """Parse and chunk a document.
 
+    For .txt files, uses simple paragraph chunking.
+    For PDF/HTML, uses Docling HybridChunker.
     Returns list of chunks with metadata.
     """
+    # Simple text file handling
+    if file_path.suffix.lower() == ".txt":
+        text = file_path.read_text(encoding="utf-8")
+        # Split into paragraphs
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+
+        chunks = []
+        for i, para in enumerate(paragraphs):
+            if len(para) > 50:  # Skip very short paragraphs
+                chunks.append(
+                    {
+                        "text": para,
+                        "metadata": {
+                            "source": str(file_path),
+                            "chunk_index": i,
+                            "start_page": 0,
+                            "end_page": 0,
+                        },
+                    }
+                )
+        return chunks
+
+    # PDF/HTML handling with Docling
     converter = _get_converter()
     result = converter.convert(str(file_path))
     doc = result.document

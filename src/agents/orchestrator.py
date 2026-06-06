@@ -55,109 +55,70 @@ class AgenticOrchestrator:
         # Step 1: Classify complexity and select model
         complexity = self.llm.classify_complexity(query)
         model = self.llm.select_model(complexity)
-        logger.info(f"Query classified as '{complexity}' → model: {model}")
+        logger.info(f"Query classified as '{complexity}' -> model: {model}")
 
         steps.append(
             AgentStep(step=1, action="route", model=model, cost_usd=0.0)
         )
 
-        # Step 2: Build messages for agent
+        # Step 2: Retrieve relevant context
+        retrieval_results = self.retriever.retrieve(query, top_k=5)
+        context = "\n\n".join([r.text[:500] for r in retrieval_results])
+        logger.info(f"Retrieved {len(retrieval_results)} passages")
+
+        steps.append(
+            AgentStep(
+                step=2,
+                action="tool_call",
+                tool="retrieve",
+                tool_input=query,
+                tool_output=f"{len(retrieval_results)} passages retrieved",
+                model=model,
+            )
+        )
+
+        # Step 3: Generate answer with context
         system_prompt = self._build_system_prompt()
         messages: list[dict[str, str]] = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": query},
+            {
+                "role": "user",
+                "content": f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer based on the context above:",
+            },
         ]
 
-        # Step 3: Tool-calling loop
-        collected_citations: list[str] = []
-        collected_context: list[str] = []
+        resp = self.llm.chat(
+            model=model,
+            messages=messages,
+        )
+        total_cost += resp.cost_usd
 
-        for iteration in range(settings.max_iterations):
-            resp = self.llm.chat(
+        steps.append(
+            AgentStep(
+                step=3,
+                action="respond",
                 model=model,
-                messages=messages,
-                tools=self.tools.get_tool_schemas(),
+                cost_usd=resp.cost_usd,
+                latency_ms=resp.latency_ms,
             )
-            total_cost += resp.cost_usd
-
-            msg = resp.raw.get("message", {})
-            tool_calls = msg.get("tool_calls", [])
-
-            if not tool_calls:
-                # Agent decided to respond directly
-                steps.append(
-                    AgentStep(
-                        step=iteration + 2,
-                        action="respond",
-                        model=model,
-                        cost_usd=resp.cost_usd,
-                        latency_ms=resp.latency_ms,
-                    )
-                )
-                break
-
-            # Execute each tool call
-            for tc in tool_calls:
-                fn = tc.get("function", {})
-                tool_name = fn.get("name", "")
-                tool_args = fn.get("arguments", {})
-
-                logger.info(f"  Tool call: {tool_name}({tool_args})")
-
-                tool_result = self.tools.execute(tool_name, tool_args)
-
-                steps.append(
-                    AgentStep(
-                        step=iteration + 2,
-                        action="tool_call",
-                        tool=tool_name,
-                        tool_input=str(tool_args),
-                        tool_output=str(tool_result)[:200],
-                        model=model,
-                        cost_usd=resp.cost_usd,
-                        latency_ms=resp.latency_ms,
-                    )
-                )
-
-                # Collect context and citations
-                if tool_name == "retrieve":
-                    collected_context.append(str(tool_result))
-                if tool_name == "cite":
-                    collected_citations.append(str(tool_result))
-
-                # Feed tool result back to agent
-                messages.append({"role": "tool", "content": str(tool_result)})
-
-        # Step 4: Final response
-        if steps[-1].action != "respond":
-            # Force a final response if loop ended without one
-            final_resp = self.llm.chat(
-                model=model,
-                messages=messages + [
-                    {
-                        "role": "user",
-                        "content": (
-                            "Based on the information gathered, provide your final "
-                            "answer now. Include specific numbers and citations."
-                        ),
-                    }
-                ],
-            )
-            total_cost += final_resp.cost_usd
-            answer = final_resp.content
-        else:
-            answer = steps[-1].tool_output or ""
+        )
 
         total_latency = (time.perf_counter() - t0) * 1000
 
+        # Extract citations from context
+        citations = []
+        for r in retrieval_results:
+            if r.metadata and r.metadata.get("source"):
+                citations.append(r.metadata["source"])
+
         return AgentResponse(
-            answer=answer,
+            answer=resp.content,
             complexity=complexity,
             model_used=model,
             steps=steps,
             total_cost_usd=total_cost,
             total_latency_ms=total_latency,
-            citations=collected_citations,
+            citations=list(set(citations)),
         )
 
     def _build_system_prompt(self) -> str:

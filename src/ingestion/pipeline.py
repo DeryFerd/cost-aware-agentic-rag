@@ -22,15 +22,15 @@ def run_ingestion(skip_download: bool = False) -> dict:
 
     # Step 1: Download
     if not skip_download:
-        print("\n📥 Step 1: Downloading SEC 10-K filings...")
+        print("\n[STEP 1] Downloading SEC 10-K filings...")
         dataset = download_sample_dataset()
         total_files = sum(len(v) for v in dataset.values())
-        print(f"   ✓ Downloaded {total_files} files from {len(dataset)} companies")
+        print(f"  Downloaded {total_files} files from {len(dataset)} companies")
     else:
-        print("\n⏭️  Skipping download (using existing files)")
+        print("\n[SKIP] Skipping download (using existing files)")
 
     # Step 2: Parse and chunk
-    print("\n  Step 2: Parsing and chunking documents...")
+    print("\n[STEP 2] Parsing and chunking documents...")
     vector_store = VectorStore()
     bm25_index = BM25Index()
 
@@ -43,7 +43,7 @@ def run_ingestion(skip_download: bool = False) -> dict:
 
         all_chunks: list[dict] = []
         for file_path in company_dir.rglob("*"):
-            if file_path.suffix.lower() in (".pdf", ".html", ".htm"):
+            if file_path.suffix.lower() in (".pdf", ".html", ".htm", ".txt"):
                 try:
                     chunks = chunk_document(file_path)
                     all_chunks.extend(chunks)
@@ -56,7 +56,7 @@ def run_ingestion(skip_download: bool = False) -> dict:
             vector_store.add_documents(all_chunks, ticker)
             bm25_index.add_documents(all_chunks)
             total_chunks += len(all_chunks)
-            print(f"   ✓ {name} ({ticker}): {len(all_chunks)} chunks")
+            print(f"  {name} ({ticker}): {len(all_chunks)} chunks")
 
     # Save BM25 index
     bm25_index.save()
@@ -69,9 +69,9 @@ def run_ingestion(skip_download: bool = False) -> dict:
 
     print(f"\n{'=' * 60}")
     print(f"  Ingestion Complete!")
-    print(f"   Total chunks: {stats['total_chunks']}")
-    print(f"   Vector store: {stats['vector_store_count']}")
-    print(f"   BM25 index:   {stats['bm25_count']}")
+    print(f"  Total chunks: {stats['total_chunks']}")
+    print(f"  Vector store: {stats['vector_store_count']}")
+    print(f"  BM25 index:   {stats['bm25_count']}")
     print(f"{'=' * 60}")
 
     return stats
