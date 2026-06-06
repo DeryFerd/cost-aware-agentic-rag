@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -13,6 +14,22 @@ from src.retrieval.hybrid import HybridRetriever
 from src.agents.tools import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+
+def _clean_response(text: str) -> str:
+    """Remove tool_call syntax and other artifacts from model output."""
+    # Remove ```tool_code blocks
+    text = re.sub(r'```tool_code.*?```', '', text, flags=re.DOTALL)
+    # Remove tool_call patterns
+    text = re.sub(r'<tool_call>.*?</tool_call>', '', text, flags=re.DOTALL)
+    # Remove stray tool references
+    text = re.sub(r'retrieve\(.*?\)', '', text)
+    text = re.sub(r'summarize\(.*?\)', '', text)
+    text = re.sub(r'compare\(.*?\)', '', text)
+    text = re.sub(r'cite\(.*?\)', '', text)
+    # Clean up extra whitespace
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
 
 
 @dataclass
@@ -93,6 +110,9 @@ class AgenticOrchestrator:
         )
         total_cost += resp.cost_usd
 
+        # Clean up response - remove any tool call syntax
+        answer = _clean_response(resp.content)
+
         steps.append(
             AgentStep(
                 step=3,
@@ -112,7 +132,7 @@ class AgenticOrchestrator:
                 citations.append(r.metadata["source"])
 
         return AgentResponse(
-            answer=resp.content,
+            answer=answer,
             complexity=complexity,
             model_used=model,
             steps=steps,
@@ -126,17 +146,12 @@ class AgenticOrchestrator:
 
 Your job is to answer questions about public companies using their 10-K reports.
 
-Available tools:
-- retrieve: Search the knowledge base for relevant document passages
-- summarize: Summarize multiple passages into a concise answer
-- compare: Compare financial metrics across companies or years
-- cite: Extract specific citations with page numbers
+The relevant document passages have already been retrieved for you. Use ONLY the provided context to answer.
 
 Rules:
-1. Always use the 'retrieve' tool first to find relevant information
-2. For comparison questions, use 'compare' after retrieving data
-3. Include specific numbers, percentages, and dates in your answers
-4. Always cite your sources using the 'cite' tool
-5. If information is not available, say so clearly
-6. Be concise but thorough — prioritize accuracy over length
+1. Answer based ONLY on the provided context
+2. Include specific numbers, percentages, and dates in your answers
+3. If information is not available in the context, say "I don't have that information in the provided documents"
+4. Be concise but thorough — prioritize accuracy over length
+5. Do NOT use any tool calls or special syntax — just provide a direct answer
 """

@@ -53,12 +53,12 @@ cost_tracker = CostTracker()
 # ── Web Pages ──────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 def landing_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/app", response_class=HTMLResponse)
 def dashboard_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("app.html", {"request": request})
+    return templates.TemplateResponse(request, "app.html")
 
 
 # ── API Endpoints ──────────────────────────────────────────────────
