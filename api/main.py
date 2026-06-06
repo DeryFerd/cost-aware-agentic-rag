@@ -5,8 +5,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 # Add project root to path
 project_root = Path(__file__).resolve().parent.parent
@@ -37,11 +40,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Static files and templates
+web_dir = project_root / "web"
+app.mount("/static", StaticFiles(directory=str(web_dir / "static")), name="static")
+templates = Jinja2Templates(directory=str(web_dir / "templates"))
+
 # Initialize components
 orchestrator = AgenticOrchestrator()
 cost_tracker = CostTracker()
 
 
+# ── Web Pages ──────────────────────────────────────────────────────
+@app.get("/", response_class=HTMLResponse)
+def landing_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/app", response_class=HTMLResponse)
+def dashboard_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("app.html", {"request": request})
+
+
+# ── API Endpoints ──────────────────────────────────────────────────
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     stats = orchestrator.retriever.stats()

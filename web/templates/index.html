@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinRAG - Cost-Aware Agentic RAG for Financial Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glow { box-shadow: 0 0 40px rgba(59, 130, 246, 0.3); }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
+        .typing-cursor::after { content: '|'; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-dark-950 text-white min-h-screen">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-brain text-white text-lg"></i>
+                    </div>
+                    <span class="text-xl font-bold gradient-text">FinRAG</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#features" class="text-dark-300 hover:text-white transition">Features</a>
+                    <a href="#how-it-works" class="text-dark-300 hover:text-white transition">How it Works</a>
+                    <a href="#pricing" class="text-dark-300 hover:text-white transition">Pricing</a>
+                    <a href="/app" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition font-medium">Launch App</a>
+                </div>
+                <button class="md:hidden text-white" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+        <!-- Mobile Menu -->
+        <div id="mobileMenu" class="hidden md:hidden glass border-t border-dark-700">
+            <div class="px-4 py-4 space-y-3">
+                <a href="#features" class="block text-dark-300 hover:text-white">Features</a>
+                <a href="#how-it-works" class="block text-dark-300 hover:text-white">How it Works</a>
+                <a href="/app" class="block px-4 py-2 bg-primary-600 rounded-lg text-center">Launch App</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+        <!-- Background Animation -->
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="absolute -top-40 -right-40 w-80 h-80 bg-primary-500/20 rounded-full blur-3xl animate-float"></div>
+            <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-float" style="animation-delay: -3s;"></div>
+        </div>
+
+        <div class="relative z-10 text-center px-4 max-w-5xl mx-auto">
+            <div class="inline-flex items-center px-4 py-2 bg-primary-500/10 border border-primary-500/20 rounded-full mb-8">
+                <span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                <span class="text-sm text-primary-300">Powered by Ollama Cloud + Docling</span>
+            </div>
+
+            <h1 class="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+                <span class="gradient-text">Cost-Aware</span><br>
+                <span class="text-white">Agentic RAG</span>
+            </h1>
+
+            <p class="text-xl md:text-2xl text-dark-300 mb-10 max-w-3xl mx-auto">
+                Analyze SEC 10-K filings with AI-powered retrieval, intelligent routing, and production-grade observability.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="/app" class="px-8 py-4 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 rounded-xl font-semibold text-lg transition glow">
+                    <i class="fas fa-rocket mr-2"></i>Launch Dashboard
+                </a>
+                <a href="https://github.com/DeryFerd/cost-aware-agentic-rag" target="_blank" class="px-8 py-4 bg-dark-800 hover:bg-dark-700 border border-dark-600 rounded-xl font-semibold text-lg transition">
+                    <i class="fab fa-github mr-2"></i>View Source
+                </a>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16">
+                <div class="glass rounded-xl p-4">
+                    <div class="text-3xl font-bold gradient-text">280+</div>
+                    <div class="text-dark-400 text-sm">Document Chunks</div>
+                </div>
+                <div class="glass rounded-xl p-4">
+                    <div class="text-3xl font-bold gradient-text">5</div>
+                    <div class="text-dark-400 text-sm">Companies Tracked</div>
+                </div>
+                <div class="glass rounded-xl p-4">
+                    <div class="text-3xl font-bold gradient-text">$0.00</div>
+                    <div class="text-dark-400 text-sm">Cost Per Query</div>
+                </div>
+                <div class="glass rounded-xl p-4">
+                    <div class="text-3xl font-bold gradient-text">&lt;10s</div>
+                    <div class="text-dark-400 text-sm">Avg Response Time</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-24 px-4">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold mb-4">Everything you need for <span class="gradient-text">Financial RAG</span></h2>
+                <p class="text-dark-400 text-lg max-w-2xl mx-auto">Production-grade features that make your financial analysis pipeline reliable, cost-effective, and observable.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="glass rounded-2xl p-8 hover:border-primary-500/50 transition group">
+                    <div class="w-14 h-14 bg-primary-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary-500/20 transition">
+                        <i class="fas fa-route text-primary-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Cost-Aware Routing</h3>
+                    <p class="text-dark-400">Intelligent query complexity classification routes simple questions to fast models and complex analysis to powerful ones.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="glass rounded-2xl p-8 hover:border-purple-500/50 transition group">
+                    <div class="w-14 h-14 bg-purple-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-purple-500/20 transition">
+                        <i class="fas fa-search text-purple-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Hybrid Retrieval</h3>
+                    <p class="text-dark-400">Vector similarity + BM25 sparse search with normalized score fusion for maximum recall and precision.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="glass rounded-2xl p-8 hover:border-pink-500/50 transition group">
+                    <div class="w-14 h-14 bg-pink-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-pink-500/20 transition">
+                        <i class="fas fa-robot text-pink-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Agentic Orchestration</h3>
+                    <p class="text-dark-400">Multi-step reasoning with automatic tool selection, context retrieval, and answer generation.</p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="glass rounded-2xl p-8 hover:border-green-500/50 transition group">
+                    <div class="w-14 h-14 bg-green-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-green-500/20 transition">
+                        <i class="fas fa-chart-line text-green-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Cost Tracking</h3>
+                    <p class="text-dark-400">Per-query cost visibility with budget controls and model usage analytics across your entire fleet.</p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="glass rounded-2xl p-8 hover:border-yellow-500/50 transition group">
+                    <div class="w-14 h-14 bg-yellow-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-yellow-500/20 transition">
+                        <i class="fas fa-file-alt text-yellow-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">Docling Parser</h3>
+                    <p class="text-dark-400">97.9% table extraction accuracy with IBM's Docling. Handles PDFs, financial tables, and complex layouts.</p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="glass rounded-2xl p-8 hover:border-cyan-500/50 transition group">
+                    <div class="w-14 h-14 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-cyan-500/20 transition">
+                        <i class="fas fa-plug text-cyan-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3">REST API</h3>
+                    <p class="text-dark-400">Production-ready FastAPI endpoints with OpenAPI docs, rate limiting, and comprehensive error handling.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works -->
+    <section id="how-it-works" class="py-24 px-4 bg-dark-900/50">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold mb-4">How it <span class="gradient-text">Works</span></h2>
+                <p class="text-dark-400 text-lg">Three simple steps to financial intelligence</p>
+            </div>
+
+            <div class="space-y-8">
+                <!-- Step 1 -->
+                <div class="flex items-start gap-6 glass rounded-2xl p-8">
+                    <div class="w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span class="text-white font-bold text-xl">1</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Ask a Financial Question</h3>
+                        <p class="text-dark-400">Type your question about SEC 10-K filings. Our system automatically classifies complexity and routes to the optimal model.</p>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="flex items-start gap-6 glass rounded-2xl p-8">
+                    <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span class="text-white font-bold text-xl">2</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Hybrid Retrieval</h3>
+                        <p class="text-dark-400">We search across vector embeddings and BM25 indices simultaneously, fusing results for maximum relevance.</p>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="flex items-start gap-6 glass rounded-2xl p-8">
+                    <div class="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span class="text-white font-bold text-xl">3</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Get Intelligent Answer</h3>
+                        <p class="text-dark-400">Receive a comprehensive answer with citations, confidence scores, and cost breakdown.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-24 px-4">
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="glass rounded-3xl p-12 glow">
+                <h2 class="text-4xl font-bold mb-4">Ready to analyze <span class="gradient-text">financial documents</span>?</h2>
+                <p class="text-dark-400 text-lg mb-8">Start asking questions about SEC 10-K filings in seconds.</p>
+                <a href="/app" class="inline-flex items-center px-8 py-4 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 rounded-xl font-semibold text-lg transition">
+                    <i class="fas fa-rocket mr-2"></i>Get Started Free
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-4 border-t border-dark-800">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-brain text-white text-sm"></i>
+                </div>
+                <span class="font-semibold">FinRAG</span>
+            </div>
+            <p class="text-dark-500 text-sm">Built with Ollama Cloud + Docling + ChromaDB + FastAPI</p>
+            <div class="flex items-center space-x-4">
+                <a href="https://github.com/DeryFerd/cost-aware-agentic-rag" target="_blank" class="text-dark-400 hover:text-white transition">
+                    <i class="fab fa-github text-xl"></i>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>

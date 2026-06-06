@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinRAG Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .chat-bubble { max-width: 80%; }
+        .user-bubble { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+        .ai-bubble { background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .typing-indicator span { animation: typing 1.4s infinite; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-dark-950 text-white min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 glass border-r border-dark-700 flex flex-col">
+        <!-- Logo -->
+        <div class="p-4 border-b border-dark-700">
+            <a href="/" class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <span class="text-xl font-bold gradient-text">FinRAG</span>
+            </a>
+        </div>
+
+        <!-- Nav Links -->
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="/app" class="flex items-center space-x-3 px-4 py-3 bg-primary-600/20 text-primary-400 rounded-xl">
+                <i class="fas fa-comments"></i>
+                <span>Query</span>
+            </a>
+            <a href="/app/documents" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-file-alt"></i>
+                <span>Documents</span>
+            </a>
+            <a href="/app/analytics" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-chart-bar"></i>
+                <span>Analytics</span>
+            </a>
+        </nav>
+
+        <!-- System Status -->
+        <div class="p-4 border-t border-dark-700">
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span class="text-sm font-medium">System Status</span>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">API</span>
+                        <span id="apiStatus" class="text-green-400">Connected</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">Documents</span>
+                        <span id="docCount" class="text-white">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">Queries Today</span>
+                        <span id="queryCount" class="text-white">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col">
+        <!-- Header -->
+        <header class="glass border-b border-dark-700 p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold">Financial Document Analysis</h1>
+                    <p class="text-dark-400 text-sm">Ask questions about SEC 10-K filings</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 px-4 py-2 glass rounded-xl">
+                        <i class="fas fa-coins text-yellow-400"></i>
+                        <span class="text-sm">Cost: $<span id="totalCost">0.00</span></span>
+                    </div>
+                    <div class="flex items-center space-x-2 px-4 py-2 glass rounded-xl">
+                        <i class="fas fa-clock text-primary-400"></i>
+                        <span class="text-sm">Avg: <span id="avgLatency">0</span>ms</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Chat Area -->
+        <div id="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-4">
+            <!-- Welcome Message -->
+            <div class="flex items-start space-x-4 fade-in">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <div class="chat-bubble ai-bubble rounded-2xl p-4">
+                    <p class="text-white">Welcome to <strong>FinRAG</strong>! I can answer questions about SEC 10-K financial filings.</p>
+                    <p class="text-dark-400 text-sm mt-2">Try asking:</p>
+                    <ul class="text-dark-300 text-sm mt-1 space-y-1">
+                        <li>• "What was Microsoft's revenue in 2024?"</li>
+                        <li>• "Compare Amazon and Google revenue growth"</li>
+                        <li>• "What are Tesla's main risk factors?"</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 border-t border-dark-700">
+            <form id="queryForm" class="flex items-center space-x-4">
+                <div class="flex-1 relative">
+                    <input
+                        type="text"
+                        id="queryInput"
+                        placeholder="Ask about SEC 10-K filings..."
+                        class="w-full px-5 py-4 bg-dark-800 border border-dark-600 rounded-xl focus:outline-none focus:border-primary-500 transition text-white placeholder-dark-400"
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg transition">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </form>
+            <p class="text-center text-dark-500 text-xs mt-2">
+                Powered by Ollama Cloud (gemma3:4b) • Cost-aware routing • Hybrid retrieval
+            </p>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        const chatContainer = document.getElementById('chatContainer');
+        const queryForm = document.getElementById('queryForm');
+        const queryInput = document.getElementById('queryInput');
+
+        // Load stats on page load
+        loadStats();
+
+        queryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            // Add user message
+            addMessage(query, 'user');
+            queryInput.value = '';
+
+            // Show typing indicator
+            const typingId = addTypingIndicator();
+
+            try {
+                const response = await fetch(`${API_BASE}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+
+                // Remove typing indicator
+                removeTypingIndicator(typingId);
+
+                // Add AI response
+                addAiMessage(data);
+
+                // Update stats
+                loadStats();
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                addErrorMessage('Failed to connect to API. Please try again.');
+            }
+        });
+
+        function addMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = 'flex items-start space-x-4 fade-in';
+
+            if (type === 'user') {
+                div.innerHTML = `
+                    <div class="flex-1 flex justify-end">
+                        <div class="chat-bubble user-bubble rounded-2xl p-4">
+                            <p class="text-white">${escapeHtml(text)}</p>
+                        </div>
+                    </div>
+                    <div class="w-10 h-10 bg-dark-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-user text-dark-300"></i>
+                    </div>
+                `;
+            }
+
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addAiMessage(data) {
+            const div = document.createElement('div');
+            div.className = 'flex items-start space-x-4 fade-in';
+
+            const complexityColor = data.complexity === 'complex' ? 'text-purple-400' : 'text-green-400';
+            const citations = data.citations?.slice(0, 3).map(c => {
+                const parts = c.split('\\');
+                return parts[parts.length - 1] || c;
+            }) || [];
+
+            div.innerHTML = `
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <div class="chat-bubble ai-bubble rounded-2xl p-4 max-w-[85%]">
+                    <p class="text-white whitespace-pre-wrap">${escapeHtml(data.answer)}</p>
+                    <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-dark-600">
+                        <span class="px-2 py-1 bg-dark-700 rounded text-xs ${complexityColor}">${data.complexity}</span>
+                        <span class="px-2 py-1 bg-dark-700 rounded text-xs text-dark-300">${data.model_used}</span>
+                        <span class="px-2 py-1 bg-dark-700 rounded text-xs text-dark-300">$${data.cost_usd.toFixed(4)}</span>
+                        <span class="px-2 py-1 bg-dark-700 rounded text-xs text-dark-300">${data.latency_ms.toFixed(0)}ms</span>
+                        <span class="px-2 py-1 bg-dark-700 rounded text-xs text-dark-300">${data.steps_count} steps</span>
+                    </div>
+                    ${citations.length > 0 ? `
+                        <div class="mt-2">
+                            <p class="text-dark-500 text-xs mb-1">Sources:</p>
+                            ${citations.map(c => `<p class="text-dark-400 text-xs">📄 ${c}</p>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addTypingIndicator() {
+            const id = 'typing-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'flex items-start space-x-4 fade-in';
+            div.innerHTML = `
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <div class="chat-bubble ai-bubble rounded-2xl p-4">
+                    <div class="typing-indicator flex space-x-1">
+                        <span class="w-2 h-2 bg-dark-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-dark-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-dark-400 rounded-full"></span>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return id;
+        }
+
+        function removeTypingIndicator(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function addErrorMessage(text) {
+            const div = document.createElement('div');
+            div.className = 'flex items-start space-x-4 fade-in';
+            div.innerHTML = `
+                <div class="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-red-400"></i>
+                </div>
+                <div class="chat-bubble bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
+                    <p class="text-red-300">${escapeHtml(text)}</p>
+                </div>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function loadStats() {
+            try {
+                const [health, cost] = await Promise.all([
+                    fetch(`${API_BASE}/health`).then(r => r.json()),
+                    fetch(`${API_BASE}/cost/summary`).then(r => r.json())
+                ]);
+
+                document.getElementById('apiStatus').textContent = 'Connected';
+                document.getElementById('apiStatus').className = 'text-green-400';
+                document.getElementById('docCount').textContent = health.vector_store_count || 0;
+                document.getElementById('queryCount').textContent = cost.total_queries || 0;
+                document.getElementById('totalCost').textContent = (cost.total_cost || 0).toFixed(4);
+                document.getElementById('avgLatency').textContent = (cost.avg_latency_ms || 0).toFixed(0);
+            } catch {
+                document.getElementById('apiStatus').textContent = 'Disconnected';
+                document.getElementById('apiStatus').className = 'text-red-400';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
