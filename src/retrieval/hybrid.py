@@ -1,7 +1,8 @@
-"""Hybrid retrieval combining vector, BM25, and ColPali scores."""
+"""Hybrid retrieval combining vector, BM25, and re-ranking."""
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from src.config import settings
@@ -15,11 +16,53 @@ class RetrievalResult:
     score: float
     vector_score: float = 0.0
     bm25_score: float = 0.0
+    rerank_score: float = 0.0
     metadata: dict | None = None
 
 
+def _extract_ticker_from_query(query: str) -> str | None:
+    """Extract company ticker from query."""
+    tickers = {
+        "MSFT": ["microsoft", "msft"],
+        "AMZN": ["amazon", "amzn"],
+        "META": ["meta", "facebook", "meta platforms"],
+        "GOOG": ["google", "alphabet", "goog"],
+        "TSLA": ["tesla", "tsla"],
+    }
+
+    query_lower = query.lower()
+    for ticker, keywords in tickers.items():
+        for kw in keywords:
+            if kw in query_lower:
+                return ticker
+    return None
+
+
+def _extract_year_from_query(query: str) -> str | None:
+    """Extract year from query."""
+    match = re.search(r"\b(20\d{2})\b", query)
+    return match.group(1) if match else None
+
+
+def _compute_keyword_overlap(query: str, text: str) -> float:
+    """Compute keyword overlap between query and text."""
+    query_words = set(query.lower().split())
+    text_words = set(text.lower().split())
+
+    # Remove common stop words
+    stop_words = {"the", "a", "an", "in", "on", "at", "for", "to", "of", "and", "or", "was", "were", "is", "are"}
+    query_words -= stop_words
+    text_words -= stop_words
+
+    if not query_words:
+        return 0.0
+
+    overlap = query_words & text_words
+    return len(overlap) / len(query_words)
+
+
 class HybridRetriever:
-    """Multi-index retrieval with score fusion."""
+    """Multi-index retrieval with score fusion and re-ranking."""
 
     def __init__(self) -> None:
         self.vector_store = VectorStore()
@@ -37,16 +80,26 @@ class HybridRetriever:
         query: str,
         top_k: int = settings.top_k,
         weights: dict[str, float] | None = None,
+        use_filters: bool = True,
     ) -> list[RetrievalResult]:
-        """Hybrid retrieval with normalized score fusion."""
+        """Hybrid retrieval with filtering and re-ranking."""
         weights = weights or self._weights
 
-        # Vector search
-        vector_results = self.vector_store.search(query, top_k=top_k * 2)
+        # Extract filters from query
+        ticker_filter = _extract_ticker_from_query(query) if use_filters else None
+        year_filter = _extract_year_from_query(query) if use_filters else None
+
+        # Vector search with filters
+        vector_results = self.vector_store.search(
+            query,
+            top_k=top_k * 3,
+            ticker_filter=ticker_filter,
+            year_filter=year_filter,
+        )
         vector_scores = {r["text"]: r["score"] for r in vector_results}
 
         # BM25 search
-        bm25_results = self.bm25_index.search(query, top_k=top_k * 2)
+        bm25_results = self.bm25_index.search(query, top_k=top_k * 3)
         bm25_scores = {r["text"]: r["score"] for r in bm25_results}
 
         # Normalize scores
@@ -82,7 +135,21 @@ class HybridRetriever:
                 )
             )
 
-        # Sort by fused score and return top_k
+        # Re-rank based on keyword overlap
+        for result in fused:
+            result.rerank_score = _compute_keyword_overlap(query, result.text)
+            # Boost score if metadata matches query
+            if meta:
+                if ticker_filter and meta.get("ticker") == ticker_filter:
+                    result.rerank_score += 0.2
+                if year_filter and meta.get("year") == year_filter:
+                    result.rerank_score += 0.1
+
+        # Final score: 60% fused + 40% rerank
+        for result in fused:
+            result.score = 0.6 * result.score + 0.4 * result.rerank_score
+
+        # Sort by final score and return top_k
         fused.sort(key=lambda x: x.score, reverse=True)
         return fused[:top_k]
 

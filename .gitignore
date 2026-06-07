@@ -38,3 +38,5 @@ Thumbs.db
 langfuse_data/
 src/cost_aware_agentic_rag.egg-info/
 data/*.jsonl
+PLAN.md
+PROGRESS.md

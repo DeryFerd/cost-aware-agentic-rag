@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
@@ -25,6 +26,8 @@ from api.models import (
 from src.agents.orchestrator import AgenticOrchestrator
 from src.generation.cost_tracker import CostTracker, QueryCostRecord
 from src.config import settings
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Cost-Aware Agentic RAG",
@@ -50,6 +53,16 @@ orchestrator = AgenticOrchestrator()
 cost_tracker = CostTracker()
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Load indices on startup."""
+    try:
+        orchestrator.retriever.load_indices()
+        logger.info("Indices loaded successfully")
+    except Exception as e:
+        logger.warning(f"Could not load indices: {e}")
+
+
 # ── Web Pages ──────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 def landing_page(request: Request) -> HTMLResponse:
@@ -64,34 +77,45 @@ def dashboard_page(request: Request) -> HTMLResponse:
 # ── API Endpoints ──────────────────────────────────────────────────
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    stats = orchestrator.retriever.stats()
-    return HealthResponse(
-        status="ok",
-        vector_store_count=stats["vector_count"],
-        bm25_count=stats["bm25_count"],
-        version="0.1.0",
-    )
+    try:
+        stats = orchestrator.retriever.stats()
+        return HealthResponse(
+            status="ok",
+            vector_store_count=stats["vector_count"],
+            bm25_count=stats["bm25_count"],
+            version="0.1.0",
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail=f"Service unavailable: {e}")
 
 
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest) -> QueryResponse:
+    if not req.query or not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+
     try:
-        response = orchestrator.run(req.query)
+        response = orchestrator.run(req.query.strip())
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Query failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Query processing failed: {e}")
 
     # Track cost
-    cost_tracker.record(
-        QueryCostRecord(
-            query=req.query,
-            model=response.model_used,
-            complexity=response.complexity,
-            tokens_in=0,
-            tokens_out=0,
-            cost_usd=response.total_cost_usd,
-            latency_ms=response.total_latency_ms,
+    try:
+        cost_tracker.record(
+            QueryCostRecord(
+                query=req.query,
+                model=response.model_used,
+                complexity=response.complexity,
+                tokens_in=0,
+                tokens_out=0,
+                cost_usd=response.total_cost_usd,
+                latency_ms=response.total_latency_ms,
+            )
         )
-    )
+    except Exception as e:
+        logger.warning(f"Cost tracking failed: {e}")
 
     return QueryResponse(
         answer=response.answer,
@@ -106,10 +130,18 @@ def query(req: QueryRequest) -> QueryResponse:
 
 @app.get("/cost/summary", response_model=CostSummary)
 def cost_summary() -> CostSummary:
-    summary = cost_tracker.summary()
-    return CostSummary(**summary)
+    try:
+        summary = cost_tracker.summary()
+        return CostSummary(**summary)
+    except Exception as e:
+        logger.error(f"Cost summary failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Cost summary failed: {e}")
 
 
 @app.get("/cost/budget")
 def cost_budget():
-    return cost_tracker.budget_check()
+    try:
+        return cost_tracker.budget_check()
+    except Exception as e:
+        logger.error(f"Budget check failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Budget check failed: {e}")

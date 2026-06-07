@@ -47,11 +47,11 @@ class VectorStore:
         ids = [f"{ticker}_{i}" for i in range(len(chunks))]
         metadatas = [
             {
-                "ticker": ticker,
+                "ticker": c["metadata"].get("ticker", ticker),
+                "year": c["metadata"].get("year", "UNKNOWN"),
+                "section": c["metadata"].get("section", "unknown"),
                 "source": c["metadata"].get("source", ""),
                 "chunk_index": c["metadata"].get("chunk_index", i),
-                "start_page": c["metadata"].get("start_page", 0),
-                "end_page": c["metadata"].get("end_page", 0),
             }
             for i, c in enumerate(chunks)
         ]
@@ -64,15 +64,35 @@ class VectorStore:
         )
         return len(ids)
 
-    def search(self, query: str, top_k: int = settings.top_k) -> list[dict]:
-        """Search for similar documents."""
+    def search(
+        self,
+        query: str,
+        top_k: int = settings.top_k,
+        ticker_filter: str | None = None,
+        year_filter: str | None = None,
+    ) -> list[dict]:
+        """Search for similar documents with optional filtering."""
         query_embedding = self._embed([query])[0]
 
-        results = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k,
-            include=["documents", "metadatas", "distances"],
-        )
+        # Build where filter for ChromaDB
+        conditions = []
+        if ticker_filter:
+            conditions.append({"ticker": ticker_filter.upper()})
+        if year_filter:
+            conditions.append({"year": year_filter})
+
+        query_params = {
+            "query_embeddings": [query_embedding],
+            "n_results": top_k,
+            "include": ["documents", "metadatas", "distances"],
+        }
+
+        if len(conditions) == 1:
+            query_params["where"] = conditions[0]
+        elif len(conditions) > 1:
+            query_params["where"] = {"$and": conditions}
+
+        results = self.collection.query(**query_params)
 
         return [
             {

@@ -3,129 +3,130 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
-
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.datamodel.pipeline_options import PdfPipelineOptions
-from docling.chunking import HybridChunker
 
 from src.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-def _get_converter() -> DocumentConverter:
-    """Create a Docling converter with optimized settings for financial docs."""
-    pipeline_options = PdfPipelineOptions()
-    pipeline_options.do_table_structure = True
-    pipeline_options.table_structure_options.do_cell_matching = True
+def _extract_metadata(file_path: Path) -> dict:
+    """Extract ticker, year, and section from file path."""
+    parts = file_path.parts
+    ticker = None
+    year = None
 
-    return DocumentConverter(
-        format_options={
-            "pdf": PdfFormatOption(pipeline_options=pipeline_options),
-        }
-    )
-
-
-def parse_document(file_path: Path) -> dict:
-    """Parse a single document and return structured content.
-
-    Returns:
-        dict with keys: title, sections, tables, figures, metadata
-    """
-    converter = _get_converter()
-    result = converter.convert(str(file_path))
-    doc = result.document
-
-    sections = []
-    tables = []
-    figures = []
-
-    for item in doc.texts:
-        if item.label == "section_header":
-            sections.append(
-                {
-                    "title": item.text,
-                    "level": getattr(item, "level", 1),
-                }
-            )
-        elif item.label == "table":
-            tables.append(
-                {
-                    "content": item.text,
-                    "export": getattr(item, "export_to_dataframe", None),
-                }
-            )
-        elif item.label == "figure":
-            figures.append(
-                {
-                    "caption": item.text,
-                    "image": getattr(item, "image", None),
-                }
-            )
+    # Find ticker and year from path
+    for part in parts:
+        if part.upper() in ["MSFT", "AMZN", "META", "GOOG", "TSLA"]:
+            ticker = part.upper()
+        if re.match(r"^20\d{2}$", part):
+            year = part
 
     return {
-        "title": doc.name if hasattr(doc, "name") else file_path.stem,
-        "sections": sections,
-        "tables": tables,
-        "figures": figures,
-        "text": doc.export_to_markdown(),
-        "metadata": {
-            "source": str(file_path),
-            "pages": len(doc.pages) if hasattr(doc, "pages") else 0,
-        },
+        "ticker": ticker or "UNKNOWN",
+        "year": year or "UNKNOWN",
     }
 
 
-def chunk_document(file_path: Path) -> list[dict]:
-    """Parse and chunk a document.
+def _split_into_sections(text: str) -> list[dict]:
+    """Split text into sections based on headers."""
+    sections = []
+    current_section = {"header": " preamble", "content": ""}
 
-    For .txt files, uses simple paragraph chunking.
-    For PDF/HTML, uses Docling HybridChunker.
-    Returns list of chunks with metadata.
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            current_section["content"] += "\n"
+            continue
+
+        # Detect section headers (ITEM X, PART X, etc.)
+        if re.match(r"^(ITEM|PART|Section)\s+\d", line, re.IGNORECASE):
+            if current_section["content"].strip():
+                sections.append(current_section)
+            current_section = {"header": line, "content": ""}
+        else:
+            current_section["content"] += line + "\n"
+
+    if current_section["content"].strip():
+        sections.append(current_section)
+
+    return sections
+
+
+def _split_into_sentences(text: str) -> list[str]:
+    """Split text into sentences."""
+    # Split on sentence boundaries
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    return [s.strip() for s in sentences if s.strip()]
+
+
+def _create_chunks_from_section(
+    section: dict,
+    metadata: dict,
+    max_chunk_size: int = 500,
+) -> list[dict]:
+    """Create smaller chunks from a section."""
+    content = section["content"].strip()
+    if not content:
+        return []
+
+    chunks = []
+    sentences = _split_into_sentences(content)
+
+    current_chunk = ""
+    for sentence in sentences:
+        if len(current_chunk) + len(sentence) > max_chunk_size and current_chunk:
+            chunks.append(current_chunk.strip())
+            current_chunk = sentence
+        else:
+            current_chunk += " " + sentence if current_chunk else sentence
+
+    if current_chunk.strip():
+        chunks.append(current_chunk.strip())
+
+    result = []
+    for i, chunk in enumerate(chunks):
+        if len(chunk) > 50:  # Skip very short chunks
+            result.append({
+                "text": f"[{section['header']}] {chunk}",
+                "metadata": {
+                    **metadata,
+                    "section": section["header"],
+                    "chunk_index": i,
+                },
+            })
+
+    return result
+
+
+def chunk_document(file_path: Path) -> list[dict]:
+    """Parse and chunk a document into smaller, targeted chunks.
+
+    For .txt files: splits by section headers, then by sentences.
+    Returns list of chunks with company/year metadata.
     """
-    # Simple text file handling
+    metadata = _extract_metadata(file_path)
+
     if file_path.suffix.lower() == ".txt":
         text = file_path.read_text(encoding="utf-8")
-        # Split into paragraphs
-        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    elif file_path.suffix.lower() in (".pdf", ".html", ".htm"):
+        # For now, treat as text (PDF parsing needs Docling)
+        text = file_path.read_text(encoding="utf-8", errors="ignore")
+    else:
+        return []
 
-        chunks = []
-        for i, para in enumerate(paragraphs):
-            if len(para) > 50:  # Skip very short paragraphs
-                chunks.append(
-                    {
-                        "text": para,
-                        "metadata": {
-                            "source": str(file_path),
-                            "chunk_index": i,
-                            "start_page": 0,
-                            "end_page": 0,
-                        },
-                    }
-                )
-        return chunks
+    # Split into sections
+    sections = _split_into_sections(text)
 
-    # PDF/HTML handling with Docling
-    converter = _get_converter()
-    result = converter.convert(str(file_path))
-    doc = result.document
+    # Create chunks from each section
+    all_chunks = []
+    for section in sections:
+        chunks = _create_chunks_from_section(section, metadata)
+        all_chunks.extend(chunks)
 
-    chunker = HybridChunker()
-    chunks = list(chunker.chunk(doc))
-
-    return [
-        {
-            "text": chunk.text,
-            "metadata": {
-                "source": str(file_path),
-                "chunk_index": i,
-                "start_page": getattr(chunk, "start_page", 0),
-                "end_page": getattr(chunk, "end_page", 0),
-            },
-        }
-        for i, chunk in enumerate(chunks)
-    ]
+    return all_chunks
 
 
 def parse_all_documents() -> dict[str, list[dict]]:
@@ -140,7 +141,7 @@ def parse_all_documents() -> dict[str, list[dict]]:
         all_chunks: list[dict] = []
 
         for file_path in company_dir.rglob("*"):
-            if file_path.suffix.lower() in (".pdf", ".html", ".htm"):
+            if file_path.suffix.lower() in (".pdf", ".html", ".htm", ".txt"):
                 try:
                     chunks = chunk_document(file_path)
                     all_chunks.extend(chunks)
