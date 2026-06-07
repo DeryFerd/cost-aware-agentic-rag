@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from src.config import settings
 from src.generation.llm_client import OllamaClient
 from src.retrieval.hybrid import HybridRetriever
+from src.observability import observability
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,7 @@ class AgenticOrchestrator:
         # Extract citations - only from relevant companies mentioned in query
         citations = self._extract_relevant_citations(query, retrieval_results)
 
-        return AgentResponse(
+        response = AgentResponse(
             answer=answer,
             complexity=complexity,
             model_used=model,
@@ -153,6 +154,19 @@ class AgenticOrchestrator:
             citations=citations,
             chunks_used=len(retrieval_results),
         )
+
+        # Track with observability
+        observability.track_query(
+            query=query,
+            answer=answer,
+            model=model,
+            complexity=complexity,
+            cost_usd=total_cost,
+            latency_ms=total_latency,
+            metadata={"chunks_used": len(retrieval_results), "citations": citations},
+        )
+
+        return response
 
     def _extract_relevant_citations(self, query: str, results: list) -> list[str]:
         """Extract citations only from companies mentioned in the query."""
