@@ -25,6 +25,7 @@ from api.models import (
 )
 from src.agents.orchestrator import AgenticOrchestrator
 from src.generation.cost_tracker import CostTracker, QueryCostRecord
+from src.agents.memory import memory
 from src.config import settings
 
 logger = logging.getLogger(__name__)
@@ -168,6 +169,19 @@ def cost_budget():
         raise HTTPException(status_code=500, detail=f"Budget check failed: {e}")
 
 
+@app.get("/conversation/history")
+def conversation_history():
+    """Get conversation history."""
+    return {"history": memory.get_history(limit=20)}
+
+
+@app.delete("/conversation/clear")
+def clear_conversation():
+    """Clear conversation history."""
+    memory.clear()
+    return {"status": "cleared"}
+
+
 @app.post("/query/stream")
 def query_stream(req: QueryRequest):
     """Stream response token by token for better UX."""
@@ -176,20 +190,29 @@ def query_stream(req: QueryRequest):
 
     import json
 
+    SYSTEM_PROMPT = """You are a financial analyst AI specializing in SEC 10-K filings.
+
+Rules:
+1. Answer based ONLY on the provided context
+2. Include specific numbers and dates
+3. Reference company ticker and year when citing
+4. If info not available, say "I don't have that information"
+5. Be concise but thorough
+6. For comparisons, use a table format"""
+
     def generate():
         try:
             # Classify complexity
             complexity = orchestrator.llm.classify_complexity(req.query.strip())
             model = orchestrator.llm.select_model(complexity)
 
-            # Retrieve context
-            retrieval_results = orchestrator.retriever.retrieve(req.query.strip(), top_k=5)
-            context = _build_context(retrieval_results, max_chars=2000)
+            # Retrieve context using new agentic system
+            results = orchestrator.retriever.retrieve(req.query.strip(), top_k=5)
+            context = _build_context(results, max_chars=2000)
 
             # Build messages
-            system_prompt = orchestrator._build_system_prompt()
             messages = [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": SYSTEM_PROMPT},
                 {
                     "role": "user",
                     "content": f"Document Context:\n{context}\n\n---\n\nQuestion: {req.query.strip()}\n\nProvide a direct answer based on the context above:",
@@ -201,7 +224,17 @@ def query_stream(req: QueryRequest):
                 yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
             # Send metadata at the end
-            citations = orchestrator._extract_relevant_citations(req.query.strip(), retrieval_results)
+            citations = []
+            seen = set()
+            for r in results:
+                if r.metadata:
+                    ticker = r.metadata.get("ticker", "")
+                    year = r.metadata.get("year", "")
+                    key = f"{ticker}_{year}"
+                    if ticker and key not in seen:
+                        seen.add(key)
+                        citations.append(f"{ticker} {year}")
+
             metadata = {
                 "type": "metadata",
                 "complexity": complexity,
