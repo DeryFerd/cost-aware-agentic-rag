@@ -1,0 +1,102 @@
+[
+  {
+    "id": "msft_revenue_2024",
+    "query": "What was Microsoft's revenue in 2024?",
+    "expected": "Microsoft's revenue in 2024 was $245.1 billion.",
+    "actual": "Microsoft\u2019s revenue in 2024 was $245.1 billion.",
+    "faithfulness": 1.0,
+    "relevancy": 1.0,
+    "completeness": 1.0,
+    "overall": 1.0
+  },
+  {
+    "id": "msft_revenue_2023",
+    "query": "What was Microsoft's revenue in 2023?",
+    "expected": "Microsoft's revenue in 2023 was $211.9 billion.",
+    "actual": "Microsoft\u2019s revenue in 2023 was $211.9 billion.",
+    "faithfulness": 1.0,
+    "relevancy": 1.0,
+    "completeness": 1.0,
+    "overall": 1.0
+  },
+  {
+    "id": "tsla_risks",
+    "query": "What are Tesla's main risk factors?",
+    "expected": "Tesla's main risk factors are EV competition, manufacturing scalability, and regulatory changes.",
+    "actual": "According to the TSLA 2022 10-K filing, the principal risk factors associated with Tesla\u2019s business are EV competition, manufacturing scalability, and regulatory changes.",
+    "faithfulness": 1.0,
+    "relevancy": 1.0,
+    "completeness": 0.8,
+    "overall": 0.9333333333333332
+  },
+  {
+    "id": "amzn_revenue_2024",
+    "query": "What was Amazon's revenue in 2024?",
+    "expected": "Amazon's revenue in 2024 was $574.0 billion.",
+    "actual": "Amazon\u2019s revenue in 2024 was $574.0 billion.",
+    "faithfulness": 1.0,
+    "relevancy": 1.0,
+    "completeness": 1.0,
+    "overall": 1.0
+  },
+  {
+    "id": "meta_revenue_2024",
+    "query": "What was Meta's revenue in 2024?",
+    "expected": "Meta's revenue in 2024 was $164.0 billion.",
+    "actual": "Meta\u2019s revenue in 2024 was $164.0 billion.",
+    "faithfulness": 1.0,
+    "relevancy": 1.0,
+    "completeness": 1.0,
+    "overall": 1.0
+  },
+  {
+    "id": "goog_revenue_2024",
+    "query": "What was Alphabet's revenue in 2024?",
+    "expected": "Alphabet's revenue in 2024 was $350.0 billion.",
+    "actual": "Alphabet\u2019s revenue in 2024 was $574.0 billion.",
+    "faithfulness": 0.0,
+    "relevancy": 1.0,
+    "completeness": 1.0,
+    "overall": 0.6666666666666666
+  },
+  {
+    "id": "msft_risks",
+    "query": "What are Microsoft's risk factors?",
+    "expected": "Microsoft's risk factors include cloud competition, cybersecurity threats, and regulatory changes.",
+    "actual": "According to the MSFT 2022 10-K filing, the principal risk factors associated with Microsoft\u2019s business are cloud competition, cybersecurity threats, and regulatory changes.",
+    "faithfulness": 1.0,
+    "relevancy": 1.0,
+    "completeness": 0.8,
+    "overall": 0.9333333333333332
+  },
+  {
+    "id": "amzn_risks",
+    "query": "What are Amazon's risk factors?",
+    "expected": "Amazon's risk factors include competition in e-commerce, AWS market share, and labor costs.",
+    "actual": "According to the AMZN 2022 10-K filing, the principal risk factors associated with Amazon\u2019s business are competition in e-commerce, AWS market share, and labor costs.",
+    "faithfulness": 1.0,
+    "relevancy": 1.0,
+    "completeness": 0.7,
+    "overall": 0.9
+  },
+  {
+    "id": "msft_employees",
+    "query": "How many employees does Microsoft have?",
+    "expected": "Microsoft has 228,000 employees.",
+    "actual": "I don't have that information in the provided documents.",
+    "faithfulness": 0.0,
+    "relevancy": 0.3,
+    "completeness": 0.3,
+    "overall": 0.19999999999999998
+  },
+  {
+    "id": "tsla_employees",
+    "query": "How many employees does Tesla have?",
+    "expected": "Tesla has 140,473 employees.",
+    "actual": "I don't have that information in the provided documents.",
+    "faithfulness": 1.0,
+    "relevancy": 0.3,
+    "completeness": 0.3,
+    "overall": 0.5333333333333333
+  }
+]
