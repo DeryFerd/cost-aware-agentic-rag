@@ -88,11 +88,22 @@ def analytics_page(request: Request) -> HTMLResponse:
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     try:
-        stats = orchestrator.retriever.stats()
+        # Count actual documents (10-K filings)
+        doc_count = 0
+        if settings.raw_dir.exists():
+            for company_dir in settings.raw_dir.iterdir():
+                if company_dir.is_dir():
+                    for year_dir in company_dir.iterdir():
+                        if year_dir.is_dir():
+                            for f in year_dir.glob("*.txt"):
+                                doc_count += 1
+
+        chunk_count = orchestrator.retriever.stats()["vector_count"]
+
         return HealthResponse(
             status="ok",
-            vector_store_count=stats["vector_count"],
-            bm25_count=stats["bm25_count"],
+            document_count=doc_count,
+            chunk_count=chunk_count,
             version="0.1.0",
         )
     except Exception as e:

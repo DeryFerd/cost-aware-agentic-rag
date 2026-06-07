@@ -46,6 +46,6 @@ class CostSummary(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
-    vector_store_count: int
-    bm25_count: int
+    document_count: int
+    chunk_count: int
     version: str

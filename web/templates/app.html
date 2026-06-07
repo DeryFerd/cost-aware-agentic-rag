@@ -373,7 +373,7 @@
 
                 document.getElementById('apiStatus').textContent = 'Connected';
                 document.getElementById('apiStatus').className = 'text-green-400';
-                document.getElementById('docCount').textContent = health.vector_store_count || 0;
+                document.getElementById('docCount').textContent = health.document_count || 0;
                 document.getElementById('queryCount').textContent = cost.total_queries || 0;
                 document.getElementById('totalCost').textContent = (cost.total_cost || 0).toFixed(4);
                 document.getElementById('avgLatency').textContent = (cost.avg_latency_ms || 0).toFixed(0);
