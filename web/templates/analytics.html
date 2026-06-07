@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - FinRAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    </style>
+</head>
+<body class="bg-dark-950 text-white min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 glass border-r border-dark-700 flex flex-col">
+        <div class="p-4 border-b border-dark-700">
+            <a href="/" class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <span class="text-xl font-bold gradient-text">FinRAG</span>
+            </a>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="/app" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-comments"></i>
+                <span>Query</span>
+            </a>
+            <a href="/app/documents" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-file-alt"></i>
+                <span>Documents</span>
+            </a>
+            <a href="/app/analytics" class="flex items-center space-x-3 px-4 py-3 bg-primary-600/20 text-primary-400 rounded-xl">
+                <i class="fas fa-chart-bar"></i>
+                <span>Analytics</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-3xl font-bold mb-2">Analytics</h1>
+            <p class="text-dark-400 mb-8">Query performance and cost metrics</p>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-search text-green-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Total Queries</p>
+                            <p id="totalQueries" class="text-2xl font-bold">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-primary-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-dollar-sign text-primary-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Total Cost</p>
+                            <p id="totalCost" class="text-2xl font-bold">$0.00</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-clock text-purple-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Avg Latency</p>
+                            <p id="avgLatency" class="text-2xl font-bold">0ms</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-brain text-yellow-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Simple vs Complex</p>
+                            <p id="simpleComplex" class="text-2xl font-bold">0 / 0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost by Model -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-xl font-bold mb-4">Cost by Model</h2>
+                <div id="costByModel" class="space-y-4">
+                    <p class="text-dark-400">No data yet</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function loadAnalytics() {
+            try {
+                const response = await fetch('/cost/summary');
+                const data = await response.json();
+
+                document.getElementById('totalQueries').textContent = data.total_queries;
+                document.getElementById('totalCost').textContent = '$' + data.total_cost.toFixed(4);
+                document.getElementById('avgLatency').textContent = Math.round(data.avg_latency_ms) + 'ms';
+
+                const costByModel = document.getElementById('costByModel');
+                if (Object.keys(data.cost_by_model).length > 0) {
+                    costByModel.innerHTML = Object.entries(data.cost_by_model).map(([model, cost]) => `
+                        <div class="flex items-center justify-between">
+                            <span class="text-dark-300">${model}</span>
+                            <span class="text-white font-mono">$${cost.toFixed(4)}</span>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+            }
+        }
+
+        loadAnalytics();
+    </script>
+</body>
+</html>

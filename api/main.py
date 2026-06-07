@@ -74,6 +74,16 @@ def dashboard_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "app.html")
 
 
+@app.get("/app/documents", response_class=HTMLResponse)
+def documents_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "documents.html")
+
+
+@app.get("/app/analytics", response_class=HTMLResponse)
+def analytics_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "analytics.html")
+
+
 # ── API Endpoints ──────────────────────────────────────────────────
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
