@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -145,3 +145,61 @@ def cost_budget():
     except Exception as e:
         logger.error(f"Budget check failed: {e}")
         raise HTTPException(status_code=500, detail=f"Budget check failed: {e}")
+
+
+@app.post("/query/stream")
+def query_stream(req: QueryRequest):
+    """Stream response token by token for better UX."""
+    if not req.query or not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    import json
+
+    def generate():
+        try:
+            # Classify complexity
+            complexity = orchestrator.llm.classify_complexity(req.query.strip())
+            model = orchestrator.llm.select_model(complexity)
+
+            # Retrieve context
+            retrieval_results = orchestrator.retriever.retrieve(req.query.strip(), top_k=5)
+            context = _build_context(retrieval_results, max_chars=2000)
+
+            # Build messages
+            system_prompt = orchestrator._build_system_prompt()
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": f"Document Context:\n{context}\n\n---\n\nQuestion: {req.query.strip()}\n\nProvide a direct answer based on the context above:",
+                },
+            ]
+
+            # Stream response
+            for chunk in orchestrator.llm.chat_stream(model=model, messages=messages):
+                yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
+
+            # Send metadata at the end
+            citations = orchestrator._extract_relevant_citations(req.query.strip(), retrieval_results)
+            metadata = {
+                "type": "metadata",
+                "complexity": complexity,
+                "model_used": model,
+                "citations": citations,
+                "cost_usd": 0.0,
+                "steps_count": 3,
+            }
+            yield f"data: {json.dumps(metadata)}\n\n"
+            yield f"data: [DONE]\n\n"
+
+        except Exception as e:
+            logger.error(f"Stream failed: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+def _build_context(results: list, max_chars: int = 2000) -> str:
+    """Build context string from retrieval results."""
+    from src.agents.orchestrator import _build_context as build_ctx
+    return build_ctx(results, max_chars)

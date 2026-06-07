@@ -119,6 +119,26 @@ class OllamaClient:
             return settings.ollama_complex_model
         return settings.ollama_simple_model
 
+    def chat_stream(
+        self,
+        model: str,
+        messages: list[dict[str, str]],
+        *,
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ):
+        """Stream chat response token by token."""
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "options": {"temperature": temperature, "num_predict": max_tokens},
+            "stream": True,
+        }
+
+        for chunk in self.client.chat(**kwargs):
+            if chunk.get("message", {}).get("content"):
+                yield chunk["message"]["content"]
+
     @staticmethod
     def _estimate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
         costs = MODEL_COSTS.get(model, {"input": 0.0, "output": 0.0})

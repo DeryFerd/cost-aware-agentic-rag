@@ -140,14 +140,8 @@ class AgenticOrchestrator:
 
         total_latency = (time.perf_counter() - t0) * 1000
 
-        # Extract citations
-        citations = []
-        for r in retrieval_results:
-            if r.metadata:
-                ticker = r.metadata.get("ticker", "")
-                year = r.metadata.get("year", "")
-                if ticker and year:
-                    citations.append(f"{ticker} {year}")
+        # Extract citations - only from relevant companies mentioned in query
+        citations = self._extract_relevant_citations(query, retrieval_results)
 
         return AgentResponse(
             answer=answer,
@@ -156,9 +150,68 @@ class AgenticOrchestrator:
             steps=steps,
             total_cost_usd=total_cost,
             total_latency_ms=total_latency,
-            citations=list(set(citations)),
+            citations=citations,
             chunks_used=len(retrieval_results),
         )
+
+    def _extract_relevant_citations(self, query: str, results: list) -> list[str]:
+        """Extract citations only from companies mentioned in the query."""
+        # Check if query is about a specific company
+        query_lower = query.lower()
+
+        # Off-topic queries - no citations
+        off_topic_keywords = ["hi", "hello", "hey", "thanks", "thank you", "bye", "good morning", "good evening"]
+        if any(query_lower.strip().startswith(kw) for kw in off_topic_keywords):
+            return []
+        if len(query_lower.split()) <= 2:  # Very short queries like "hi", "hey"
+            return []
+
+        # Detect which companies are mentioned in the query
+        mentioned_companies = set()
+
+        company_keywords = {
+            "MSFT": ["microsoft", "msft"],
+            "AMZN": ["amazon", "amzn"],
+            "META": ["meta", "facebook"],
+            "GOOG": ["google", "alphabet", "goog"],
+            "TSLA": ["tesla", "tsla"],
+        }
+
+        for ticker, keywords in company_keywords.items():
+            for kw in keywords:
+                if kw in query_lower:
+                    mentioned_companies.add(ticker)
+                    break
+
+        # If no specific company mentioned, return top 2 unique sources
+        if not mentioned_companies:
+            seen = set()
+            citations = []
+            for r in results:
+                if r.metadata:
+                    ticker = r.metadata.get("ticker", "")
+                    year = r.metadata.get("year", "")
+                    key = f"{ticker}_{year}"
+                    if ticker and key not in seen:
+                        seen.add(key)
+                        citations.append(f"{ticker} {year}")
+                        if len(citations) >= 2:
+                            break
+            return citations
+
+        # Otherwise, only return citations from mentioned companies
+        citations = []
+        seen = set()
+        for r in results:
+            if r.metadata:
+                ticker = r.metadata.get("ticker", "")
+                year = r.metadata.get("year", "")
+                key = f"{ticker}_{year}"
+                if ticker in mentioned_companies and key not in seen:
+                    seen.add(key)
+                    citations.append(f"{ticker} {year}")
+
+        return citations
 
     def _build_system_prompt(self) -> str:
         return """You are a financial analyst AI specializing in SEC 10-K filings.

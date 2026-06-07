@@ -170,29 +170,98 @@
             addMessage(query, 'user');
             queryInput.value = '';
 
-            // Show typing indicator
-            const typingId = addTypingIndicator();
+            // Create AI message container for streaming
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'flex items-start space-x-4 fade-in';
+            aiDiv.innerHTML = `
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <div class="chat-bubble ai-bubble rounded-2xl p-4 max-w-[85%]">
+                    <div class="typing-indicator flex space-x-1">
+                        <span class="w-2 h-2 bg-dark-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-dark-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-dark-400 rounded-full"></span>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(aiDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            const bubble = aiDiv.querySelector('.ai-bubble');
+            let fullText = '';
+            let metadata = null;
 
             try {
-                const response = await fetch(`${API_BASE}/query`, {
+                const response = await fetch(`${API_BASE}/query/stream`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query })
                 });
 
-                const data = await response.json();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
-                // Remove typing indicator
-                removeTypingIndicator(typingId);
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
 
-                // Add AI response
-                addAiMessage(data);
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const raw = line.slice(6);
+                            if (raw === '[DONE]') continue;
+
+                            try {
+                                const data = JSON.parse(raw);
+
+                                if (data.type === 'token') {
+                                    fullText += data.content;
+                                    bubble.innerHTML = `<p class="text-white whitespace-pre-wrap">${escapeHtml(fullText)}</p>`;
+                                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                                } else if (data.type === 'metadata') {
+                                    metadata = data;
+                                } else if (data.type === 'error') {
+                                    bubble.innerHTML = `<p class="text-red-400">${escapeHtml(data.message)}</p>`;
+                                    return;
+                                }
+                            } catch (e) {
+                                // Not JSON, treat as plain text token
+                                fullText += raw;
+                                bubble.innerHTML = `<p class="text-white whitespace-pre-wrap">${escapeHtml(fullText)}</p>`;
+                            }
+                        }
+                    }
+                }
+
+                // Add metadata footer if available
+                if (metadata) {
+                    const complexityColor = metadata.complexity === 'complex' ? 'text-purple-400' : 'text-green-400';
+                    const citations = metadata.citations?.slice(0, 3) || [];
+
+                    bubble.innerHTML = `
+                        <p class="text-white whitespace-pre-wrap">${escapeHtml(fullText)}</p>
+                        <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-dark-600">
+                            <span class="px-2 py-1 bg-dark-700 rounded text-xs ${complexityColor}">${metadata.complexity}</span>
+                            <span class="px-2 py-1 bg-dark-700 rounded text-xs text-dark-300">${metadata.model_used}</span>
+                            <span class="px-2 py-1 bg-dark-700 rounded text-xs text-dark-300">$${metadata.cost_usd.toFixed(4)}</span>
+                            <span class="px-2 py-1 bg-dark-700 rounded text-xs text-dark-300">${metadata.steps_count} steps</span>
+                        </div>
+                        ${citations.length > 0 ? `
+                            <div class="mt-2">
+                                <p class="text-dark-500 text-xs mb-1">Sources:</p>
+                                ${citations.map(c => `<p class="text-dark-400 text-xs">📄 ${c}</p>`).join('')}
+                            </div>
+                        ` : ''}
+                    `;
+                }
 
                 // Update stats
                 loadStats();
             } catch (error) {
-                removeTypingIndicator(typingId);
-                addErrorMessage('Failed to connect to API. Please try again.');
+                bubble.innerHTML = `<p class="text-red-400">Failed to connect to API. Please try again.</p>`;
             }
         });
 
