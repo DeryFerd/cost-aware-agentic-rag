@@ -12,43 +12,53 @@ from src.config import settings
 companies = {
     'MSFT': {
         'name': 'Microsoft Corporation',
+        'description': 'Microsoft Corporation is a global technology company that develops software, hardware, cloud services, and AI solutions. Our flagship products include Windows, Office 365, Azure cloud platform, and GitHub.',
         'revenue_2024': 245.1,
         'revenue_2023': 211.9,
         'revenue_2022': 198.3,
         'employees': 228000,
-        'risks': ['Cloud competition', 'Cybersecurity threats', 'Regulatory changes'],
+        'risks': ['Cloud competition from AWS and Google', 'Cybersecurity threats and data breaches', 'Regulatory changes in AI and antitrust'],
+        'segment': 'Intelligent Cloud',
     },
     'AMZN': {
         'name': 'Amazon.com Inc',
+        'description': 'Amazon.com Inc is a leading e-commerce and cloud computing company. Our operations include Amazon.com retail marketplace, Amazon Web Services (AWS) cloud platform, and Prime membership services.',
         'revenue_2024': 574.0,
         'revenue_2023': 524.9,
         'revenue_2022': 469.8,
         'employees': 1540000,
-        'risks': ['Competition in e-commerce', 'AWS market share', 'Labor costs'],
+        'risks': ['Intense competition in e-commerce', 'AWS market share pressure', 'Rising labor and logistics costs'],
+        'segment': 'North America',
     },
     'META': {
         'name': 'Meta Platforms Inc',
+        'description': 'Meta Platforms Inc builds technologies that help people connect, find communities, and grow businesses. Our products include Facebook, Instagram, WhatsApp, and Quest virtual reality headsets.',
         'revenue_2024': 164.0,
         'revenue_2023': 134.9,
         'revenue_2022': 116.6,
         'employees': 67317,
-        'risks': ['Metaverse investment risk', 'Privacy regulations', 'Competition'],
+        'risks': ['Metaverse investment uncertainty', 'Privacy regulations like GDPR', 'Competition from TikTok and others'],
+        'segment': 'Family of Apps',
     },
     'GOOG': {
         'name': 'Alphabet Inc',
+        'description': 'Alphabet Inc is the parent company of Google LLC. Our products include Google Search, Google Ads, YouTube, Google Cloud, Android operating system, and Waymo autonomous vehicles.',
         'revenue_2024': 350.0,
         'revenue_2023': 307.4,
         'revenue_2022': 282.8,
         'employees': 183323,
-        'risks': ['Antitrust regulations', 'AI competition', 'Ad market volatility'],
+        'risks': ['Antitrust regulations worldwide', 'AI competition from Microsoft and OpenAI', 'Digital advertising market volatility'],
+        'segment': 'Google Services',
     },
     'TSLA': {
         'name': 'Tesla Inc',
+        'description': 'Tesla Inc designs, manufactures, and sells electric vehicles and energy generation systems. Our products include Model S, Model 3, Model X, Model Y, Cybertruck, and Powerwall energy storage.',
         'revenue_2024': 97.7,
         'revenue_2023': 96.8,
         'revenue_2022': 81.5,
         'employees': 140473,
-        'risks': ['EV competition', 'Manufacturing scalability', 'Regulatory changes'],
+        'risks': ['Electric vehicle competition', 'Manufacturing scalability challenges', 'Regulatory changes in EV incentives'],
+        'segment': 'Automotive',
     },
 }
 
@@ -82,26 +92,13 @@ OF THE SECURITIES EXCHANGE ACT OF 1934
 For the fiscal year ended December 31, {year}
 Commission File Number: 001-XXXXX
 
-{data['name']}
-One Microsoft Way
-Redmond, Washington 98052
-(425) 882-8080
-
-SECURITIES REGISTERED PURSUANT TO SECTION 12(b) OF THE ACT:
-Common Stock, par value $0.0000125 per share
-
 PART I
 
 ITEM 1. BUSINESS
 
-{data['name']} is a leading global technology company. We develop and license software, hardware, cloud services, and provide professional services.
+{data['description']}
 
-Products and Services:
-- Cloud computing services
-- Productivity software
-- Hardware devices
-- Artificial intelligence services
-- Digital advertising
+Our primary business segment is {data['segment']}.
 
 ITEM 1A. RISK FACTORS
 
@@ -117,18 +114,18 @@ PART II
 
 ITEM 7. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS
 
-Revenue Analysis:
+Revenue Analysis for {data['name']}:
 - Fiscal Year {year}: ${revenue:.1f} billion
 - Fiscal Year {year-1}: ${prev_revenue:.1f} billion
 - Year-over-year growth: {growth:.1f}%
 
-Our revenue growth was driven by increased demand for our products and services.
+Our revenue growth was driven by increased demand for {data['segment']} products and services.
 
-Employees: {data['employees']:,}
+As of December 31, {year}, {data['name']} had {data['employees']:,} full-time employees.
 
 ITEM 8. FINANCIAL STATEMENTS AND SUPPLEMENTARY DATA
 
-See accompanying consolidated financial statements.
+See accompanying consolidated financial statements of {data['name']}.
 
 SIGNATURES
 
