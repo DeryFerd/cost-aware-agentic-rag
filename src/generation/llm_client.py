@@ -139,6 +139,54 @@ class OllamaClient:
             if chunk.get("message", {}).get("content"):
                 yield chunk["message"]["content"]
 
+    def chat_with_image(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        *,
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> LLMResponse:
+        """Chat with image input for vision models.
+
+        Messages format for images:
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "What is in this image?"},
+                {"type": "image", "image": "base64_encoded_image"}
+            ]
+        }
+        """
+        t0 = time.perf_counter()
+
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "options": {"temperature": temperature, "num_predict": max_tokens},
+        }
+
+        resp = self.client.chat(**kwargs)
+        latency = (time.perf_counter() - t0) * 1000
+
+        msg = resp.get("message", {})
+        content = msg.get("content", "")
+        usage = resp.get("usage", {})
+        tokens_in = usage.get("prompt_tokens", 0)
+        tokens_out = usage.get("completion_tokens", 0)
+
+        cost = self._estimate_cost(model, tokens_in, tokens_out)
+
+        return LLMResponse(
+            content=content,
+            model=model,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            latency_ms=latency,
+            cost_usd=cost,
+            raw=resp,
+        )
+
     @staticmethod
     def _estimate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
         costs = MODEL_COSTS.get(model, {"input": 0.0, "output": 0.0})

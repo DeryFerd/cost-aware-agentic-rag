@@ -81,6 +81,13 @@ TOOLS = {
             "expression": {"type": "string", "description": "Math expression, e.g. '245.1 / 211.9' or 'growth rate from 211.9 to 245.1'"},
         },
     },
+    "analyze_image": {
+        "description": "Analyze an image (chart, graph, table) and extract data from it",
+        "parameters": {
+            "image_path": {"type": "string", "description": "Path to the image file"},
+            "question": {"type": "string", "description": "What to analyze (optional)"},
+        },
+    },
 }
 
 
@@ -310,6 +317,21 @@ For complex analysis, use multiple tools."""
             expression = args.get("expression", "")
             # Simple calculation - just return the expression for now
             return f"Calculation requested: {expression}"
+
+        elif tool_name == "analyze_image":
+            image_path = args.get("image_path", "")
+            question = args.get("question", "Describe this image and extract any data points.")
+
+            from src.multimodal.vision import VisionAnalyzer
+            analyzer = VisionAnalyzer()
+            analysis = analyzer.analyze_image(image_path, question)
+
+            return {
+                "description": analysis.description,
+                "data_points": analysis.data_points,
+                "chart_type": analysis.chart_type,
+                "insights": analysis.insights,
+            }
 
         return f"Unknown tool: {tool_name}"
 
