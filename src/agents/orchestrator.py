@@ -305,12 +305,18 @@ For complex analysis, use multiple tools."""
             tickers = args.get("tickers", "").split(",")
             metric = args.get("metric", "revenue")
 
-            all_results = {}
+            all_results = []
             for ticker in tickers:
                 ticker = ticker.strip()
                 if ticker:
                     results = self.retriever.retrieve(f"{ticker} {metric}", top_k=2, use_filters=True)
-                    all_results[ticker] = [r.text[:300] for r in results]
+                    for r in results:
+                        year = r.metadata.get("year", "") if r.metadata else ""
+                        all_results.append({
+                            "text": r.text[:400],
+                            "ticker": ticker,
+                            "year": year,
+                        })
             return all_results
 
         elif tool_name == "calculate":
@@ -352,12 +358,8 @@ For complex analysis, use multiple tools."""
                         # Extract tables from text
                         tables = extract_tables_from_text(text, ticker, year)
                         all_tables.extend(tables)
-            elif isinstance(results, dict):
-                for ticker, texts in results.items():
-                    for text in texts:
-                        parts.append(f"[{ticker}] {text}")
-                        tables = extract_tables_from_text(text, ticker)
-                        all_tables.extend(tables)
+                    elif isinstance(r, str):
+                        parts.append(r)
 
         # Add formatted tables
         if all_tables:
