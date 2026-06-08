@@ -9,10 +9,12 @@ import httpx
 
 from src.config import settings
 
-EDGAR_SEARCH = "https://efts.sec.gov/LATEST/search-index"
-HEADERS = {"User-Agent": "DeryFerd ResearchBot contact@example.com"}
+HEADERS = {
+    "User-Agent": "DeryFerd ResearchBot deryferd@example.com",
+    "Accept": "application/json",
+}
 
-# Target companies (CIK, ticker, name)
+# Target companies (CIK without leading zeros, ticker, name)
 TARGET_COMPANIES = [
     ("789019", "MSFT", "Microsoft"),
     ("1018724", "AMZN", "Amazon"),
@@ -22,43 +24,88 @@ TARGET_COMPANIES = [
 ]
 
 
-def _get_filing_index(cik: str, form_type: str = "10-K") -> list[dict]:
-    """Get filing index from EDGAR."""
-    # Clean CIK (remove leading zeros)
-    cik_clean = cik.lstrip("0")
-    url = f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik_clean}&type=10-K&dateb=&owner=include&count=10&search_text=&action=getcompany"
-    
-    results = []
+def _get_filing_accessions(cik: str, form_type: str = "10-K") -> list[dict]:
+    """Get filing accessions from EDGAR XBRL API."""
+    cik_padded = cik.zfill(10)
+    url = f"https://data.sec.gov/submissions/CIK{cik_padded}.json"
+
     try:
-        resp = httpx.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
+        resp = httpx.get(url, headers=HEADERS, timeout=30)
         resp.raise_for_status()
-        # Parse the HTML to find filing links
-        text = resp.text
-        # Find filing entries
+        data = resp.json()
+
+        recent = data.get("filings", {}).get("recent", {})
+        forms = recent.get("form", [])
+        dates = recent.get("filingDate", [])
+        accessions = recent.get("accessionNumber", [])
+
+        filings = []
+        for form, date, acc in zip(forms, dates, accessions):
+            if form == form_type:
+                try:
+                    year = int(date[:4])
+                    filings.append({
+                        "date": date,
+                        "year": year,
+                        "accession": acc,
+                        "form_type": form_type,
+                    })
+                except (ValueError, IndexError):
+                    pass
+
+        return filings[:5]
+
+    except Exception as e:
+        print(f"  Warning: Could not fetch filings for CIK {cik}: {e}")
+        return []
+
+
+def _download_filing_document(cik: str, accession: str, dest: Path) -> Path | None:
+    """Download the primary filing document."""
+    cik_padded = cik.zfill(10)
+    acc_no_dashes = accession.replace("-", "")
+
+    # Try to get the filing index
+    index_url = f"https://www.sec.gov/Archives/edgar/data/{cik.lstrip('0')}/{acc_no_dashes}/{accession}-index.htm"
+
+    try:
+        resp = httpx.get(index_url, headers=HEADERS, timeout=30, follow_redirects=True)
+        resp.raise_for_status()
+
+        # Find primary document
         import re
-        # Look for filing links in the format /Archives/edgar/data/...
-        pattern = r'/Archives/edgar/data/\d+/\d+-\d+-\d+/'
-        matches = re.findall(pattern, text)
-        for match in matches[:5]:  # Limit to 5 most recent
-            filing_url = f"https://www.sec.gov{match}"
-            results.append({"url": filing_url, "form_type": form_type})
-    except Exception as e:
-        print(f"  Warning: Could not fetch index for CIK {cik}: {e}")
-    
-    return results
+        # Look for the primary document link (usually .htm or .html)
+        pattern = r'href="([^"]*\.(?:htm|html))"'
+        matches = re.findall(pattern, resp.text)
 
+        for match in matches:
+            # Skip index pages
+            if "index" in match.lower():
+                continue
 
-def _download_filing(url: str, dest: Path) -> Path | None:
-    """Download a single filing to disk."""
-    try:
-        resp = httpx.get(url, headers=HEADERS, timeout=60, follow_redirects=True)
-        resp.raise_for_status()
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(resp.content)
-        return dest
+            # Build full URL
+            if not match.startswith("http"):
+                if match.startswith("/"):
+                    doc_url = f"https://www.sec.gov{match}"
+                else:
+                    doc_url = f"https://www.sec.gov/Archives/edgar/data/{cik.lstrip('0')}/{acc_no_dashes}/{match}"
+            else:
+                doc_url = match
+
+            # Download the document
+            try:
+                doc_resp = httpx.get(doc_url, headers=HEADERS, timeout=60, follow_redirects=True)
+                doc_resp.raise_for_status()
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(doc_resp.content)
+                return dest
+            except Exception:
+                continue
+
     except Exception as e:
-        print(f"  Warning: Failed to download {url}: {e}")
-        return None
+        print(f"  Warning: Could not fetch filing index: {e}")
+
+    return None
 
 
 def download_company_filings(
@@ -68,34 +115,27 @@ def download_company_filings(
 ) -> list[Path]:
     """Download all 10-K filings for a company."""
     if years is None:
-        years = list(range(2020, 2025))
+        years = [2022, 2023, 2024]
 
     company_dir = settings.raw_dir / ticker
     downloaded: list[Path] = []
 
-    # Use EDGAR full-text search API
-    for year in years:
-        search_url = f"https://efts.sec.gov/LATEST/search-index?q=%2210-K%22&forms=10-K&dateRange=custom&startdt={year}-01-01&enddt={year}-12-31&entities={cik}"
-        
-        try:
-            resp = httpx.get(search_url, headers=HEADERS, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            # Get filing URLs from search results
-            hits = data.get("hits", {}).get("hits", [])
-            for hit in hits[:1]:  # Take first filing per year
-                source = hit.get("_source", {})
-                filing_url = source.get("file_num", "")
-                if filing_url and filing_url.startswith("http"):
-                    dest = company_dir / str(year) / "filing.html"
-                    result = _download_filing(filing_url, dest)
-                    if result:
-                        downloaded.append(result)
-        except Exception:
-            pass
-        
-        time.sleep(0.1)  # SEC rate limit
+    # Get filing list
+    filings = _get_filing_accessions(cik)
+
+    for filing in filings:
+        year = filing["year"]
+        if year not in years:
+            continue
+
+        dest = company_dir / str(year) / f"{ticker}_{year}_10K.html"
+        result = _download_filing_document(cik, filing["accession"], dest)
+
+        if result:
+            downloaded.append(result)
+            print(f"    Downloaded {year}")
+
+        time.sleep(0.25)  # SEC rate limit (4 req/sec)
 
     return downloaded
 
