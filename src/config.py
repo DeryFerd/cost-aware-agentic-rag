@@ -44,6 +44,21 @@ class Settings(BaseSettings):
     # ── API ─────────────────────────────────────────────────────────
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    secret_key: str = "your-secret-key-change-in-production"
+    debug: bool = False
+
+    # ── Database ────────────────────────────────────────────────────
+    database_url: str = "sqlite:///./data.db"
+
+    # ── Redis ───────────────────────────────────────────────────────
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_url: str = "redis://localhost:6379/0"
+
+    # ── Rate Limiting ──────────────────────────────────────────────
+    rate_limit_per_minute: int = 60
+    daily_cost_limit: float = 10.0
 
 
 settings = Settings()
