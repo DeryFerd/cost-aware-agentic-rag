@@ -21,6 +21,8 @@ TARGET_COMPANIES = [
     ("1326801", "META", "Meta Platforms"),
     ("1652044", "GOOG", "Alphabet"),
     ("1318605", "TSLA", "Tesla"),
+    ("320193", "AAPL", "Apple"),
+    ("1045810", "NVDA", "NVIDIA"),
 ]
 
 

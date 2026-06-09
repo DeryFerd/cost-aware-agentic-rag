@@ -19,7 +19,7 @@ def _extract_metadata(file_path: Path) -> dict:
 
     # Find ticker and year from path
     for part in parts:
-        if part.upper() in ["MSFT", "AMZN", "META", "GOOG", "TSLA"]:
+        if part.upper() in ["MSFT", "AMZN", "META", "GOOG", "TSLA", "AAPL", "NVDA"]:
             ticker = part.upper()
         if re.match(r"^20\d{2}$", part):
             year = part
