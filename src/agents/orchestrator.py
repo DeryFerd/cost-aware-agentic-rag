@@ -177,8 +177,7 @@ class AgenticOrchestrator:
         context = self._build_context_from_tools(context_data)
 
         # Step 5: Generate answer
-        answer = self._generate_answer(query, context, model)
-        total_cost += 0.0  # Cost tracked in generate
+        answer = self._generate_answer(query, context, model, conv_context)
 
         steps.append(AgentStep(
             step=10,
@@ -194,7 +193,7 @@ class AgenticOrchestrator:
         if reflection.get("needs_improvement"):
             more_context = self._retrieve_more(query, reflection.get("missing_info", ""))
             context = context + "\n\n---\n\nAdditional Context:\n" + more_context
-            answer = self._generate_answer(query, context, model)
+            answer = self._generate_answer(query, context, model, conv_context)
 
             steps.append(AgentStep(
                 step=11,
@@ -369,7 +368,7 @@ For complex analysis, use multiple tools."""
 
         return "\n\n---\n\n".join(parts[:10])
 
-    def _generate_answer(self, query: str, context: str, model: str) -> str:
+    def _generate_answer(self, query: str, context: str, model: str, conv_context: str = "") -> str:
         """Generate answer using LLM."""
         system_prompt = """You are a financial analyst AI specializing in SEC 10-K filings.
 
@@ -381,9 +380,14 @@ Rules:
 5. Be concise but thorough
 6. For comparisons, use a table format"""
 
+        # Add conversation context if available
+        user_content = f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
+        if conv_context:
+            user_content = f"Previous conversation:\n{conv_context}\n\n{user_content}"
+
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"},
+            {"role": "user", "content": user_content},
         ]
 
         resp = self.llm.chat(model=model, messages=messages)

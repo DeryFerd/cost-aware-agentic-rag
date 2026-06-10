@@ -15,6 +15,7 @@ beautifulsoup4==4.14.3
 blinker==1.9.0
 build==1.5.0
 cachetools==7.1.4
+celery==5.4.0
 certifi==2026.5.20
 charset-normalizer==3.4.7
 chromadb==1.5.9
@@ -91,6 +92,7 @@ orjson==3.11.9
 overrides==7.7.0
 packaging==26.2
 pandas==3.0.3
+passlib==1.7.4
 pathspec==1.1.1
 pillow==12.2.0
 pluggy==1.6.0
@@ -114,12 +116,14 @@ pytest==9.0.3
 python-dateutil==2.9.0.post0
 python-docx==1.2.0
 python-dotenv==1.2.2
+python-jose==3.3.0
 python-multipart==0.0.32
 python-pptx==1.0.2
 pywin32==312
 PyYAML==6.0.3
 rank-bm25==0.2.2
 rapidocr==3.8.1
+redis==5.2.1
 referencing==0.37.0
 regex==2026.5.9
 requests==2.34.2
@@ -139,6 +143,7 @@ shellingham==1.5.4
 six==1.17.0
 smmap==5.0.3
 soupsieve==2.8.4
+SQLAlchemy==2.0.41
 starlette==1.2.1
 streamlit==1.58.0
 sympy==1.14.0

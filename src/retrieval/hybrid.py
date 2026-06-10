@@ -139,10 +139,10 @@ class HybridRetriever:
         for result in fused:
             result.rerank_score = _compute_keyword_overlap(query, result.text)
             # Boost score if metadata matches query
-            if meta:
-                if ticker_filter and meta.get("ticker") == ticker_filter:
+            if result.metadata:
+                if ticker_filter and result.metadata.get("ticker") == ticker_filter:
                     result.rerank_score += 0.2
-                if year_filter and meta.get("year") == year_filter:
+                if year_filter and result.metadata.get("year") == year_filter:
                     result.rerank_score += 0.1
 
         # Final score: 60% fused + 40% rerank

@@ -144,19 +144,33 @@ class CostTracker(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-# Database setup
-engine = create_engine(settings.database_url, echo=settings.debug)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Database setup - lazy initialization
+_engine = None
+_SessionLocal = None
+
+
+def get_engine():
+    global _engine
+    if _engine is None:
+        _engine = create_engine(settings.database_url, echo=settings.debug)
+    return _engine
+
+
+def get_session_factory():
+    global _SessionLocal
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+    return _SessionLocal
 
 
 def init_db():
     """Create all tables."""
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=get_engine())
 
 
 def get_db():
     """Dependency for FastAPI."""
-    db = SessionLocal()
+    db = get_session_factory()()
     try:
         yield db
     finally:

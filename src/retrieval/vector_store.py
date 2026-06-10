@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import time
+
 import chromadb
 from sentence_transformers import SentenceTransformer
 
@@ -44,7 +47,13 @@ class VectorStore:
         texts = [c["text"] for c in chunks]
         embeddings = self._embed(texts)
 
-        ids = [f"{ticker}_{i}" for i in range(len(chunks))]
+        # Generate unique IDs using ticker + content hash to avoid collisions
+        timestamp = str(int(time.time()))
+        ids = []
+        for i, text in enumerate(texts):
+            content_hash = hashlib.md5(f"{ticker}_{timestamp}_{i}_{text[:100]}".encode()).hexdigest()[:8]
+            ids.append(f"{ticker}_{content_hash}_{i}")
+        
         metadatas = [
             {
                 "ticker": c["metadata"].get("ticker", ticker),

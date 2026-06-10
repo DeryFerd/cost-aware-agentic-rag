@@ -27,6 +27,7 @@ from src.agents.orchestrator import AgenticOrchestrator
 from src.generation.cost_tracker import CostTracker, QueryCostRecord
 from src.agents.memory import memory
 from src.config import settings
+from src.database.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -117,8 +118,19 @@ def query(req: QueryRequest) -> QueryResponse:
     if not req.query or not req.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
+    query_text = req.query.strip()
+
+    # Check Redis cache first
     try:
-        response = orchestrator.run(req.query.strip())
+        cached = cache.get_query_cache(query_text, settings.ollama_simple_model)
+        if cached:
+            logger.info(f"Cache hit for query: {query_text[:50]}...")
+            return QueryResponse(**cached)
+    except Exception as e:
+        logger.warning(f"Cache check failed: {e}")
+
+    try:
+        response = orchestrator.run(query_text)
     except Exception as e:
         logger.error(f"Query failed: {e}")
         raise HTTPException(status_code=500, detail=f"Query processing failed: {e}")
@@ -127,7 +139,7 @@ def query(req: QueryRequest) -> QueryResponse:
     try:
         cost_tracker.record(
             QueryCostRecord(
-                query=req.query,
+                query=query_text,
                 model=response.model_used,
                 complexity=response.complexity,
                 tokens_in=0,
@@ -139,7 +151,7 @@ def query(req: QueryRequest) -> QueryResponse:
     except Exception as e:
         logger.warning(f"Cost tracking failed: {e}")
 
-    return QueryResponse(
+    result = QueryResponse(
         answer=response.answer,
         complexity=response.complexity,
         model_used=response.model_used,
@@ -148,6 +160,14 @@ def query(req: QueryRequest) -> QueryResponse:
         citations=response.citations,
         steps_count=len(response.steps),
     )
+
+    # Cache the result
+    try:
+        cache.set_query_cache(query_text, response.model_used, result.model_dump())
+    except Exception as e:
+        logger.warning(f"Cache set failed: {e}")
+
+    return result
 
 
 @app.get("/cost/summary", response_model=CostSummary)

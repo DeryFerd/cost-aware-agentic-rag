@@ -24,9 +24,8 @@ class LLMResponse:
 
 # Approximate costs per 1M tokens (USD) — update as pricing changes
 MODEL_COSTS: dict[str, dict[str, float]] = {
-    "qwen3.5": {"input": 0.0, "output": 0.0},  # free tier
-    "deepseek-v4-flash": {"input": 0.14, "output": 0.28},
-    "kimi-k2.6": {"input": 0.6, "output": 1.8},
+    "gemma3:4b": {"input": 0.0, "output": 0.0},  # free tier
+    "gemma3:27b": {"input": 0.0, "output": 0.0},  # free tier
 }
 
 

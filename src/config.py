@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # ── API ─────────────────────────────────────────────────────────
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    secret_key: str = "your-secret-key-change-in-production"
+    secret_key: str = ""  # Set in .env file
     debug: bool = False
 
     # ── Database ────────────────────────────────────────────────────

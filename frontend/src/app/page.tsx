@@ -54,7 +54,7 @@ export default function Dashboard() {
       const response = await fetch("http://localhost:8001/query/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: userMessage }),
+        body: JSON.stringify({ query: userMessage }),
       });
 
       const reader = response.body?.getReader();

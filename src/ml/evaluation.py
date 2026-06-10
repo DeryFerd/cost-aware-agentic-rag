@@ -117,16 +117,16 @@ class MLEvaluator:
                 expected=expected,
                 model_used=result.model_used,
                 latency_ms=latency_ms,
-                tokens_input=result.tokens_input,
-                tokens_output=result.tokens_output,
-                cost_usd=result.cost_usd,
+                tokens_input=0,
+                tokens_output=0,
+                cost_usd=result.total_cost_usd,
                 relevance_score=relevance,
                 accuracy_score=accuracy,
                 completeness_score=completeness,
                 overall_score=overall,
                 tools_used=result.tools_used,
                 hallucination_detected=self.detect_hallucination(
-                    result.answer, str(result.context_data)
+                    result.answer, ""
                 ),
             )
 
