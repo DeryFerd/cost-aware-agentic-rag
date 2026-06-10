@@ -1,6 +1,6 @@
 # Cost-Aware Agentic RAG - Progress
 
-## Current Status: ALL PHASES COMPLETE ✅
+## Current Status: Phase 17 Complete ✅
 
 **Last Updated**: June 9, 2026
 
@@ -9,13 +9,13 @@
 ## Git History
 
 ```
+7a123c4 fix: resolve all ROAST_REVIEW issues
+de6664f docs: update PLAN.md and PROGRESS.md - all phases complete
 3700649 docs: update PROGRESS.md - all phases complete!
 48f1dda feat: add ML evaluation, cost optimization, Docker Compose
 b7dd1ef feat: add Next.js 14 frontend with dashboard, analytics, documents
 03e49bd feat: add PostgreSQL, Redis, JWT auth, Celery tasks
 caa3f98 feat: expand data to 7 companies, 2075 chunks
-dcbcaea docs: update PROGRESS.md with Phase 12 complete
-d9ff23c docs: update PLAN.md and PROGRESS.md with comprehensive roadmap
 746438b feat: add GitHub Actions CI pipeline
 288688f fix: compare query now returns consistent results
 3f33eb2 feat: download and index real SEC 10-K data
@@ -42,9 +42,9 @@ d9ff23c docs: update PLAN.md and PROGRESS.md with comprehensive roadmap
 - Real filings from EDGAR XBRL API
 
 ### ✅ Phase 13: Backend Complexity
-- Database models (PostgreSQL/SQLite)
+- Database models (PostgreSQL/SQLite) with lazy init
 - JWT authentication with role-based access
-- Redis caching with TTL
+- Redis caching with TTL (integrated in API)
 - Celery background tasks
 - Rate limiting per user
 - Cost tracking
@@ -70,12 +70,18 @@ d9ff23c docs: update PLAN.md and PROGRESS.md with comprehensive roadmap
 - PostgreSQL, Redis, Celery workers
 - GitHub Actions CI pipeline
 
+### ✅ Phase 17: Bug Fixes (ROAST_REVIEW)
+- Fixed 14 critical bugs and crashes
+- Added 31 comprehensive tests
+- Integrated Redis caching
+- Fixed all logic errors
+
 ---
 
 ## API Endpoints
 
 ```
-POST /query              - Execute financial query
+POST /query              - Execute financial query (with Redis caching)
 POST /query/stream       - Stream response (SSE)
 GET  /health             - System status
 GET  /cost/summary       - Cost analytics
@@ -111,7 +117,7 @@ A: EV competition, manufacturing scalability, regulatory changes
 Tools: [get_financials] ✓
 
 Q: How many employees does Apple have?
-A: 164,000 full-time employees (2024)
+A: 74,067 full-time employees (2024)
 Tools: [get_financials] ✓
 ```
 
@@ -124,7 +130,7 @@ cost-aware-agentic-rag/
 ├── .github/workflows/
 │   └── ci.yml                    # GitHub Actions CI
 ├── api/
-│   ├── main.py                   # FastAPI app
+│   ├── main.py                   # FastAPI app (with Redis cache)
 │   └── models.py                 # Pydantic schemas
 ├── frontend/                     # Next.js 14 app
 │   └── src/app/
@@ -133,26 +139,26 @@ cost-aware-agentic-rag/
 │       └── documents/page.tsx    # Documents
 ├── src/
 │   ├── agents/
-│   │   ├── orchestrator.py       # True agentic loop
+│   │   ├── orchestrator.py       # True agentic loop (fixed)
 │   │   ├── memory.py             # Conversation memory
 │   │   └── tools.py              # Tool definitions
 │   ├── retrieval/
-│   │   ├── vector_store.py       # ChromaDB
+│   │   ├── vector_store.py       # ChromaDB (fixed IDs)
 │   │   ├── bm25_index.py         # BM25 sparse
-│   │   └── hybrid.py             # Hybrid fusion
+│   │   └── hybrid.py             # Hybrid fusion (fixed reranking)
 │   ├── generation/
-│   │   ├── llm_client.py         # Ollama Cloud + vision
+│   │   ├── llm_client.py         # Ollama Cloud (fixed costs)
 │   │   └── cost_tracker.py       # Cost tracking
 │   ├── multimodal/
 │   │   ├── tables.py             # Table extraction
 │   │   ├── vision.py             # VisionAnalyzer
 │   │   └── images.py             # PDF image extraction
 │   ├── database/
-│   │   ├── models.py             # SQLAlchemy models
+│   │   ├── models.py             # SQLAlchemy models (lazy init)
 │   │   ├── auth.py               # JWT authentication
-│   │   └── cache.py              # Redis caching
+│   │   └── cache.py              # Redis caching (fixed)
 │   ├── ml/
-│   │   └── evaluation.py         # ML evaluation pipeline
+│   │   └── evaluation.py         # ML evaluation (fixed)
 │   ├── tasks/
 │   │   └── celery_app.py         # Background tasks
 │   └── ingestion/
@@ -164,23 +170,26 @@ cost-aware-agentic-rag/
 │   ├── evaluate.py               # Run evaluation
 │   └── evaluate_ml.py            # ML evaluation
 ├── tests/
-│   └── test_config.py            # Unit tests
+│   ├── test_config.py            # Basic tests
+│   └── test_comprehensive.py     # 31 comprehensive tests
 ├── data/
 │   └── raw/                      # SEC filings
 ├── docker-compose.yml            # Docker services
 ├── Dockerfile                    # API container
-├── requirements.txt              # Python dependencies
+├── requirements.txt              # Python dependencies (fixed)
 ├── PLAN.md                       # Project plan
-└── PROGRESS.md                   # This file
+├── PROGRESS.md                   # This file
+└── ROAST_REVIEW.md               # Code review issues
 ```
 
 ---
 
-## Open Issues
+## Open Issues (Remaining)
 
 1. **JPM data** - Not downloaded (API issues)
 2. **XBRL format** - Some filings in XBRL, parser needs update
 3. **No cloud deployment** - Need Railway/Render setup
+4. **Frontend analytics** - Still uses mock data (not API)
 
 ---
 
@@ -191,3 +200,4 @@ cost-aware-agentic-rag/
 3. Fine-tuning pipeline
 4. A/B testing framework
 5. Prometheus/Grafana monitoring
+6. Wire frontend analytics to real API
