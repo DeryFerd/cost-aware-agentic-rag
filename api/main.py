@@ -23,9 +23,10 @@ from api.models import (
     CostSummary,
     HealthResponse,
 )
-from src.agents.orchestrator import AgenticOrchestrator
+from src.agents.graph import LangGraphOrchestrator
 from src.generation.cost_tracker import CostTracker, QueryCostRecord
 from src.agents.memory import memory
+from src.agents.guardrails import guardrails
 from src.config import settings
 from src.database.cache import cache
 
@@ -51,7 +52,7 @@ app.mount("/static", StaticFiles(directory=str(web_dir / "static")), name="stati
 templates = Jinja2Templates(directory=str(web_dir / "templates"))
 
 # Initialize components
-orchestrator = AgenticOrchestrator()
+orchestrator = LangGraphOrchestrator()
 cost_tracker = CostTracker()
 
 
@@ -59,7 +60,9 @@ cost_tracker = CostTracker()
 async def startup_event():
     """Load indices on startup."""
     try:
-        orchestrator.retriever.load_indices()
+        from src.retrieval.hybrid import HybridRetriever
+        retriever = HybridRetriever()
+        retriever.load_indices()
         logger.info("Indices loaded successfully")
     except Exception as e:
         logger.warning(f"Could not load indices: {e}")
@@ -100,7 +103,9 @@ def health() -> HealthResponse:
                             for f in year_dir.glob("*.txt"):
                                 doc_count += 1
 
-        chunk_count = orchestrator.retriever.stats()["vector_count"]
+        from src.retrieval.vector_store import VectorStore
+        vs = VectorStore()
+        chunk_count = vs.count()
 
         return HealthResponse(
             status="ok",
@@ -120,6 +125,14 @@ def query(req: QueryRequest) -> QueryResponse:
 
     query_text = req.query.strip()
 
+    # Input guardrails
+    input_result = guardrails.validate_input(query_text)
+    if not input_result.passed:
+        raise HTTPException(status_code=400, detail=input_result.message)
+
+    # Use sanitized input
+    query_text = input_result.sanitized_input or query_text
+
     # Check Redis cache first
     try:
         cached = cache.get_query_cache(query_text, settings.ollama_simple_model)
@@ -135,35 +148,45 @@ def query(req: QueryRequest) -> QueryResponse:
         logger.error(f"Query failed: {e}")
         raise HTTPException(status_code=500, detail=f"Query processing failed: {e}")
 
+    # Output guardrails
+    answer = response["answer"]
+    output_result = guardrails.validate_output(
+        answer=answer,
+        context=response.get("context", ""),
+        query=query_text,
+    )
+    if "add_disclaimer" in output_result.issues:
+        answer = guardrails.output.add_disclaimer(answer)
+
     # Track cost
     try:
         cost_tracker.record(
             QueryCostRecord(
                 query=query_text,
-                model=response.model_used,
-                complexity=response.complexity,
+                model=response["model_used"],
+                complexity=response["complexity"],
                 tokens_in=0,
                 tokens_out=0,
-                cost_usd=response.total_cost_usd,
-                latency_ms=response.total_latency_ms,
+                cost_usd=response["total_cost_usd"],
+                latency_ms=response["total_latency_ms"],
             )
         )
     except Exception as e:
         logger.warning(f"Cost tracking failed: {e}")
 
     result = QueryResponse(
-        answer=response.answer,
-        complexity=response.complexity,
-        model_used=response.model_used,
-        cost_usd=response.total_cost_usd,
-        latency_ms=response.total_latency_ms,
-        citations=response.citations,
-        steps_count=len(response.steps),
+        answer=answer,
+        complexity=response["complexity"],
+        model_used=response["model_used"],
+        cost_usd=response["total_cost_usd"],
+        latency_ms=response["total_latency_ms"],
+        citations=response["citations"],
+        steps_count=len(response["steps"]),
     )
 
     # Cache the result
     try:
-        cache.set_query_cache(query_text, response.model_used, result.model_dump())
+        cache.set_query_cache(query_text, response["model_used"], result.model_dump())
     except Exception as e:
         logger.warning(f"Cache set failed: {e}")
 
@@ -222,12 +245,18 @@ Rules:
 
     def generate():
         try:
-            # Classify complexity
-            complexity = orchestrator.llm.classify_complexity(req.query.strip())
-            model = orchestrator.llm.select_model(complexity)
+            from src.retrieval.hybrid import HybridRetriever
+            from src.generation.llm_client import OllamaClient
 
-            # Retrieve context using new agentic system
-            results = orchestrator.retriever.retrieve(req.query.strip(), top_k=5)
+            llm = OllamaClient()
+            retriever = HybridRetriever()
+
+            # Classify complexity
+            complexity = llm.classify_complexity(req.query.strip())
+            model = llm.select_model(complexity)
+
+            # Retrieve context
+            results = retriever.retrieve(req.query.strip(), top_k=5)
             context = _build_context(results, max_chars=2000)
 
             # Build messages
@@ -240,7 +269,7 @@ Rules:
             ]
 
             # Stream response
-            for chunk in orchestrator.llm.chat_stream(model=model, messages=messages):
+            for chunk in llm.chat_stream(model=model, messages=messages):
                 yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
             # Send metadata at the end
@@ -275,5 +304,5 @@ Rules:
 
 def _build_context(results: list, max_chars: int = 2000) -> str:
     """Build context string from retrieval results."""
-    from src.agents.orchestrator import _build_context as build_ctx
+    from src.agents.graph import _build_context as build_ctx
     return build_ctx(results, max_chars)

@@ -1,4 +1,12 @@
-"""Celery tasks for background processing."""
+"""Celery tasks for background processing.
+
+NOTE: These tasks are defined for future SaaS functionality but are NOT currently
+triggered by the API. The system currently processes queries synchronously.
+To enable Celery tasks, you need to:
+1. Start a Redis server
+2. Start a Celery worker: celery -A src.tasks.celery_app worker --loglevel=info
+3. Call tasks asynchronously: ingest_document.delay(file_path, ticker, year)
+"""
 
 from celery import Celery
 from celery.utils.log import get_task_logger
@@ -67,11 +75,11 @@ def ingest_document(self, file_path: str, ticker: str, year: int):
 @app.task(bind=True, name="tasks.batch_query")
 def batch_query(self, queries: list[dict], model: str = "gemma3:4b"):
     """Process multiple queries in batch."""
-    from src.agents.orchestrator import AgenticOrchestrator
+    from src.agents.graph import LangGraphOrchestrator
 
     logger.info(f"Processing batch of {len(queries)} queries")
 
-    orchestrator = AgenticOrchestrator()
+    orchestrator = LangGraphOrchestrator()
     results = []
 
     for i, query_data in enumerate(queries):
@@ -84,9 +92,9 @@ def batch_query(self, queries: list[dict], model: str = "gemma3:4b"):
             result = orchestrator.run(query_data["question"])
             results.append({
                 "question": query_data["question"],
-                "answer": result.answer,
-                "model": result.model_used,
-                "cost": result.cost_usd,
+                "answer": result["answer"],
+                "model": result["model_used"],
+                "cost": result["total_cost_usd"],
             })
         except Exception as e:
             logger.error(f"Query {i} failed: {e}")

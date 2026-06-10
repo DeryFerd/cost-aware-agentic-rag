@@ -1,4 +1,13 @@
-"""Database models for PostgreSQL."""
+"""Database models for PostgreSQL.
+
+NOTE: These models are defined for future SaaS functionality but are NOT currently
+used in the main query flow. The system uses ChromaDB for vector storage and
+Redis for caching. These models will be needed when implementing:
+- User authentication
+- Query history persistence
+- Document management
+- Cost tracking per user
+"""
 
 from datetime import datetime
 from typing import Optional

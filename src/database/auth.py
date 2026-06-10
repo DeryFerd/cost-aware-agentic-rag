@@ -1,4 +1,12 @@
-"""JWT Authentication."""
+"""JWT Authentication.
+
+NOTE: This module is defined for future SaaS functionality but is NOT currently
+enforced on any API routes. The system currently runs without authentication.
+To enable auth, add the following to API routes:
+
+    from src.database.auth import get_current_user
+    user: User = Depends(get_current_user)
+"""
 
 from datetime import datetime, timedelta
 from typing import Optional

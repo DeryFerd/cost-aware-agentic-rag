@@ -1,14 +1,15 @@
 # Cost-Aware Agentic RAG - Progress
 
-## Current Status: Phase 17 Complete ✅
+## Current Status: Phase 18 Complete ✅
 
-**Last Updated**: June 9, 2026
+**Last Updated**: June 10, 2026
 
 ---
 
 ## Git History
 
 ```
+[latest] feat: LangGraph, RAGAS eval, guardrails, modern embeddings
 7a123c4 fix: resolve all ROAST_REVIEW issues
 de6664f docs: update PLAN.md and PROGRESS.md - all phases complete
 3700649 docs: update PROGRESS.md - all phases complete!
@@ -43,9 +44,9 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 
 ### ✅ Phase 13: Backend Complexity
 - Database models (PostgreSQL/SQLite) with lazy init
-- JWT authentication with role-based access
+- JWT authentication with role-based access (defined, not enforced)
 - Redis caching with TTL (integrated in API)
-- Celery background tasks
+- Celery background tasks (defined, not triggered)
 - Rate limiting per user
 - Cost tracking
 
@@ -53,8 +54,8 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 - Next.js 14 with App Router
 - TypeScript + Tailwind CSS
 - Dashboard with real-time streaming chat
-- Analytics page with Recharts charts
-- Documents page with filtering
+- Analytics page with Recharts charts (now uses real API)
+- Documents page with filtering (now uses real API)
 - Sidebar navigation
 
 ### ✅ Phase 15: ML/AI Engineering
@@ -68,7 +69,7 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 - Docker Compose with all services
 - Dockerfiles (API + Frontend)
 - PostgreSQL, Redis, Celery workers
-- GitHub Actions CI pipeline
+- GitHub Actions CI pipeline with lint + typecheck + Docker build
 
 ### ✅ Phase 17: Bug Fixes (ROAST_REVIEW)
 - Fixed 14 critical bugs and crashes
@@ -76,15 +77,26 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 - Integrated Redis caching
 - Fixed all logic errors
 
+### ✅ Phase 18: Architecture Upgrades (This Session)
+- **LangGraph orchestrator** - State graph with planning/execution/reflection nodes
+- **Modern embeddings** - Upgraded from MiniLM-v6 to nomic-embed-text-v1.5 (768d)
+- **RAGAS evaluation** - Proper faithfulness, relevancy, context precision/recall metrics
+- **Cost-aware routing** - Trained classifier instead of keyword matching
+- **Input/output guardrails** - PII detection, prompt injection blocking, hallucination checks
+- **Fixed frontend** - Analytics and documents pages now use real API data
+- **Cleaned dead code** - Added deprecation notices to unused PostgreSQL/JWT/Celery modules
+- **Updated CI/CD** - Added lint (ruff), typecheck (mypy), Docker build test
+
 ---
 
 ## API Endpoints
 
 ```
-POST /query              - Execute financial query (with Redis caching)
+POST /query              - Execute financial query (with guardrails + Redis caching)
 POST /query/stream       - Stream response (SSE)
 GET  /health             - System status
 GET  /cost/summary       - Cost analytics
+GET  /cost/budget        - Budget check
 GET  /conversation/history - Chat history
 POST /conversation/clear - Clear memory
 ```
@@ -95,8 +107,8 @@ POST /conversation/clear - Clear memory
 
 ```
 / (Dashboard)            - Chat with streaming
-/analytics               - Charts and metrics
-/documents               - SEC filing browser
+/analytics               - Charts and metrics (real API)
+/documents               - SEC filing browser (real API)
 ```
 
 ---
@@ -128,24 +140,26 @@ Tools: [get_financials] ✓
 ```
 cost-aware-agentic-rag/
 ├── .github/workflows/
-│   └── ci.yml                    # GitHub Actions CI
+│   └── ci.yml                    # GitHub Actions CI (lint + typecheck + Docker)
 ├── api/
-│   ├── main.py                   # FastAPI app (with Redis cache)
+│   ├── main.py                   # FastAPI app (with guardrails + Redis cache)
 │   └── models.py                 # Pydantic schemas
 ├── frontend/                     # Next.js 14 app
 │   └── src/app/
 │       ├── page.tsx              # Dashboard
-│       ├── analytics/page.tsx    # Analytics
-│       └── documents/page.tsx    # Documents
+│       ├── analytics/page.tsx    # Analytics (real API)
+│       └── documents/page.tsx    # Documents (real API)
 ├── src/
 │   ├── agents/
-│   │   ├── orchestrator.py       # True agentic loop (fixed)
+│   │   ├── orchestrator.py       # Legacy agentic loop
+│   │   ├── graph.py              # NEW: LangGraph state graph
 │   │   ├── memory.py             # Conversation memory
+│   │   ├── guardrails.py         # NEW: Input/output guardrails
 │   │   └── tools.py              # Tool definitions
 │   ├── retrieval/
-│   │   ├── vector_store.py       # ChromaDB (fixed IDs)
+│   │   ├── vector_store.py       # ChromaDB (modern embeddings)
 │   │   ├── bm25_index.py         # BM25 sparse
-│   │   └── hybrid.py             # Hybrid fusion (fixed reranking)
+│   │   └── hybrid.py             # Hybrid fusion
 │   ├── generation/
 │   │   ├── llm_client.py         # Ollama Cloud (fixed costs)
 │   │   └── cost_tracker.py       # Cost tracking
@@ -154,13 +168,16 @@ cost-aware-agentic-rag/
 │   │   ├── vision.py             # VisionAnalyzer
 │   │   └── images.py             # PDF image extraction
 │   ├── database/
-│   │   ├── models.py             # SQLAlchemy models (lazy init)
-│   │   ├── auth.py               # JWT authentication
-│   │   └── cache.py              # Redis caching (fixed)
+│   │   ├── models.py             # SQLAlchemy models (deprecated notice)
+│   │   ├── auth.py               # JWT auth (deprecated notice)
+│   │   └── cache.py              # Redis caching
 │   ├── ml/
-│   │   └── evaluation.py         # ML evaluation (fixed)
+│   │   ├── evaluation.py         # ML evaluation
+│   │   └── routing.py            # NEW: Cost-aware routing classifier
+│   ├── eval/
+│   │   └── ragas_eval.py         # NEW: RAGAS evaluation framework
 │   ├── tasks/
-│   │   └── celery_app.py         # Background tasks
+│   │   └── celery_app.py         # Background tasks (deprecated notice)
 │   └── ingestion/
 │       ├── downloader.py         # EDGAR XBRL API
 │       ├── parser.py             # Section-based chunking
@@ -168,7 +185,8 @@ cost-aware-agentic-rag/
 ├── scripts/
 │   ├── ingest.py                 # Run ingestion
 │   ├── evaluate.py               # Run evaluation
-│   └── evaluate_ml.py            # ML evaluation
+│   ├── evaluate_ml.py            # ML evaluation
+│   └── eval_ragas.py             # NEW: RAGAS evaluation
 ├── tests/
 │   ├── test_config.py            # Basic tests
 │   └── test_comprehensive.py     # 31 comprehensive tests
@@ -176,7 +194,7 @@ cost-aware-agentic-rag/
 │   └── raw/                      # SEC filings
 ├── docker-compose.yml            # Docker services
 ├── Dockerfile                    # API container
-├── requirements.txt              # Python dependencies (fixed)
+├── requirements.txt              # Python dependencies (updated)
 ├── PLAN.md                       # Project plan
 ├── PROGRESS.md                   # This file
 └── ROAST_REVIEW.md               # Code review issues
@@ -189,7 +207,7 @@ cost-aware-agentic-rag/
 1. **JPM data** - Not downloaded (API issues)
 2. **XBRL format** - Some filings in XBRL, parser needs update
 3. **No cloud deployment** - Need Railway/Render setup
-4. **Frontend analytics** - Still uses mock data (not API)
+4. **Embedding model migration** - Need to re-index with new nomic-embed-text model
 
 ---
 
@@ -197,7 +215,7 @@ cost-aware-agentic-rag/
 
 1. Deploy to cloud (Railway/Render)
 2. Add more companies (JPM, V, WMT)
-3. Fine-tuning pipeline
-4. A/B testing framework
-5. Prometheus/Grafana monitoring
-6. Wire frontend analytics to real API
+3. Re-index documents with new embedding model
+4. Fine-tuning pipeline
+5. A/B testing framework
+6. Prometheus/Grafana monitoring

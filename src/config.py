@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     ollama_complex_model: str = "gemma3:27b"
 
     # ── Embedding (local sentence-transformers) ─────────────────────
-    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = 384
 
     # ── Retrieval ───────────────────────────────────────────────────

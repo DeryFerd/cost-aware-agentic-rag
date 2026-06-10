@@ -20,16 +20,17 @@ Senior ML/AI Engineering Portfolio Project.
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         API GATEWAY (FastAPI)                               │
-│   Rate Limiting | Auth (JWT) | Caching (Redis) | WebSocket                │
+│   Rate Limiting | Guardrails | Caching (Redis) | SSE Streaming            │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
               ┌───────────────────────┼───────────────────────┐
               ▼                       ▼                       ▼
 ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
-│   Query Service     │  │  Ingestion Service  │  │  Analytics Service  │
-│   - Orchestrator    │  │  - Pipeline         │  │  - Metrics          │
+│   LangGraph Agent   │  │  Ingestion Service  │  │  Analytics Service  │
+│   - State Graph     │  │  - Pipeline         │  │  - Metrics          │
 │   - Tool Calling    │  │  - Chunking         │  │  - Cost Tracking    │
 │   - Reflection      │  │  - Embedding        │  │  - User Activity    │
+│   - Guardrails      │  │                     │  │                     │
 └─────────────────────┘  └─────────────────────┘  └─────────────────────┘
               │                       │                       │
               ▼                       ▼                       ▼
@@ -41,7 +42,7 @@ Senior ML/AI Engineering Portfolio Project.
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         ML/AI SERVICES                                      │
-│   Ollama Cloud (LLM) | Sentence-Transformers | Docling | Vision Models     │
+│   Ollama Cloud (LLM) | BGE-M3 Embeddings | Docling | Vision Models        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -58,6 +59,7 @@ Senior ML/AI Engineering Portfolio Project.
 | 15 | ✅ | ML/AI engineering - evaluation, cost optimization |
 | 16 | ✅ | DevOps - Docker Compose, CI/CD |
 | 17 | ✅ | Bug fixes - All ROAST_REVIEW issues resolved |
+| 18 | ✅ | Architecture upgrades - LangGraph, guardrails, modern embeddings |
 
 ---
 
@@ -65,13 +67,13 @@ Senior ML/AI Engineering Portfolio Project.
 
 | Company | Ticker | Years | Chunks | Status |
 |---------|--------|-------|--------|--------|
-| Microsoft | MSFT | 2022-2025 | 239 | ✅ Real |
-| Amazon | AMZN | 2022-2025 | 68 | ✅ Real |
-| Tesla | TSLA | 2022-2025 | 68 | ✅ Real |
-| Alphabet | GOOG | 2024-2025 | 34 | ✅ Real |
-| Meta | META | 2024-2025 | 1329 | ✅ Real |
-| Apple | AAPL | 2024-2025 | 153 | ✅ Real |
-| NVIDIA | NVDA | 2024-2025 | 94 | ✅ Real |
+| Microsoft | MSFT | 2022-2025 | 257 | ✅ Real |
+| Amazon | AMZN | 2022-2025 | 86 | ✅ Real |
+| Tesla | TSLA | 2022-2025 | 86 | ✅ Real |
+| Alphabet | GOOG | 2024-2025 | 52 | ✅ Real |
+| Meta | META | 2024-2025 | 1347 | ✅ Real |
+| Apple | AAPL | 2024-2025 | 127 | ✅ Real |
+| NVIDIA | NVDA | 2024-2025 | 120 | ✅ Real |
 | **Total** | | | **2075** | |
 
 ---
@@ -107,14 +109,52 @@ Senior ML/AI Engineering Portfolio Project.
 
 ### ML/AI
 - **LLM**: Ollama Cloud (gemma3:4b, gemma3:27b)
-- **Embeddings**: sentence-transformers all-MiniLM-L6-v2
+- **Embeddings**: BAAI/bge-small-en-v1.5 (384d)
 - **Parser**: Docling (IBM)
 - **Vision**: gemma3:27b
+- **Orchestration**: LangGraph (state graph)
+- **Evaluation**: RAGAS (faithfulness, relevancy, context precision/recall)
 
 ### DevOps
 - **Container**: Docker + Docker Compose
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions (lint + typecheck + Docker build)
 - **Monitoring**: Langfuse
+
+---
+
+## Phase 18: Architecture Upgrades
+
+### LangGraph Orchestrator
+- State graph with planning → execution → reflection → response nodes
+- Conditional edges for dynamic flow
+- Memory persistence via MemorySaver
+- Replaces while-loop tool calling
+
+### Modern Embeddings
+- Upgraded from all-MiniLM-L6-v2 to BAAI/bge-small-en-v1.5
+- Better retrieval quality on financial documents
+- Re-indexed all 2075 chunks
+
+### RAGAS Evaluation
+- Faithfulness scoring
+- Answer relevancy
+- Context precision and recall
+- Heuristic fallback when RAGAS unavailable
+
+### Cost-Aware Routing
+- Trained classifier (LogisticRegression + TFIDF)
+- 30 labeled training queries
+- Fallback to LLM classification when confidence low
+
+### Input/Output Guardrails
+- PII detection and redaction
+- Prompt injection blocking
+- Hallucination detection
+- Financial disclaimer injection
+
+### Fixed Frontend
+- Analytics page uses real API data
+- Documents page uses real API data
 
 ---
 
