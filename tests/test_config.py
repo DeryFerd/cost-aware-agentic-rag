@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
@@ -24,6 +26,7 @@ def test_directories_created():
     assert settings.eval_dir.exists()
 
 
+@pytest.mark.integration
 def test_sample_data_exists():
     companies = ["MSFT", "AMZN", "META", "GOOG", "TSLA"]
     for ticker in companies:

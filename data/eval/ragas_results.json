@@ -1,0 +1,39 @@
+{
+  "metrics": {
+    "faithfulness": 0.9524,
+    "answer_relevancy": 0.3067,
+    "context_precision": 0.1778,
+    "context_recall": 0.4071,
+    "overall_score": 0.4947,
+    "num_samples": 3
+  },
+  "results": [
+    {
+      "question": "What was Microsoft's revenue in 2024?",
+      "answer": "Microsoft reported revenue of $245.1 billion for fiscal year 2024.",
+      "ground_truth": "Microsoft revenue was $245.1 billion in 2024",
+      "faithfulness": 0.8571428571428571,
+      "answer_relevancy": 0.19999999999999998,
+      "context_precision": 0.16666666666666666,
+      "context_recall": 0.5714285714285714
+    },
+    {
+      "question": "Compare Amazon and Microsoft revenue",
+      "answer": "Amazon reported $574.0B revenue while Microsoft reported $245.1B in 2024.",
+      "ground_truth": "Amazon $574.0B, Microsoft $245.1B",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.72,
+      "context_precision": 0.2,
+      "context_recall": 0.25
+    },
+    {
+      "question": "What are Tesla's main risk factors?",
+      "answer": "Tesla faces risks from EV competition, manufacturing scalability, and regulatory changes.",
+      "ground_truth": "EV competition, manufacturing, regulatory risks",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.0,
+      "context_precision": 0.16666666666666666,
+      "context_recall": 0.4
+    }
+  ]
+}

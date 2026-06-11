@@ -17,6 +17,7 @@ from src.generation.llm_client import OllamaClient
 from src.retrieval.hybrid import HybridRetriever
 from src.agents.memory import memory
 from src.multimodal.tables import extract_tables_from_text, format_table_for_context
+from src.observability.langfuse import observability
 
 logger = logging.getLogger(__name__)
 
@@ -531,7 +532,7 @@ class LangGraphOrchestrator:
 
         total_latency = (time.perf_counter() - t0) * 1000
 
-        return {
+        response = {
             "answer": result.get("answer", ""),
             "complexity": result.get("complexity", ""),
             "model_used": result.get("model", ""),
@@ -542,3 +543,20 @@ class LangGraphOrchestrator:
             "chunks_used": result.get("chunks_used", 0),
             "tools_used": result.get("tools_used", []),
         }
+
+        # Track with Langfuse
+        observability.track_query(
+            query=query,
+            answer=response["answer"],
+            model=response["model_used"],
+            complexity=response["complexity"],
+            cost_usd=response["total_cost_usd"],
+            latency_ms=response["total_latency_ms"],
+            metadata={
+                "tools_used": response["tools_used"],
+                "citations_count": len(response["citations"]),
+                "chunks_used": response["chunks_used"],
+            },
+        )
+
+        return response

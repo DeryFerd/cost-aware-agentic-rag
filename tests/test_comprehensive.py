@@ -639,3 +639,96 @@ class TestLangGraphOrchestrator:
         from src.agents.graph import LangGraphOrchestrator
         orch = LangGraphOrchestrator()
         assert orch.graph is not None
+
+
+# ── Retrieval Metrics ─────────────────────────────────────────────
+
+class TestRetrievalMetrics:
+    def test_ndcg_perfect(self):
+        from src.eval.retrieval_metrics import _ndcg_at_k
+        # All relevant docs at top
+        relevances = [1, 1, 1, 0, 0]
+        ndcg = _ndcg_at_k(relevances, 5)
+        assert ndcg == 1.0
+
+    def test_ndcg_imperfect(self):
+        from src.eval.retrieval_metrics import _ndcg_at_k
+        # Some relevant docs, not all at top
+        relevances = [0, 1, 0, 1, 0]
+        ndcg = _ndcg_at_k(relevances, 5)
+        assert 0 < ndcg < 1.0
+
+    def test_ndcg_no_relevant(self):
+        from src.eval.retrieval_metrics import _ndcg_at_k
+        relevances = [0, 0, 0, 0, 0]
+        ndcg = _ndcg_at_k(relevances, 5)
+        assert ndcg == 0.0
+
+    def test_mrr_first_position(self):
+        from src.eval.retrieval_metrics import _mrr
+        relevances = [1, 0, 0, 0]
+        mrr = _mrr(relevances)
+        assert mrr == 1.0
+
+    def test_mrr_second_position(self):
+        from src.eval.retrieval_metrics import _mrr
+        relevances = [0, 1, 0, 0]
+        mrr = _mrr(relevances)
+        assert mrr == 0.5
+
+    def test_mrr_no_relevant(self):
+        from src.eval.retrieval_metrics import _mrr
+        relevances = [0, 0, 0, 0]
+        mrr = _mrr(relevances)
+        assert mrr == 0.0
+
+    def test_recall_at_k(self):
+        from src.eval.retrieval_metrics import _recall_at_k
+        retrieved = [0, 1, 2, 3, 4]
+        relevant_set = {1, 3}
+        recall = _recall_at_k(retrieved, relevant_set, 5)
+        assert recall == 1.0  # Both relevant docs in top 5
+
+    def test_recall_at_k_partial(self):
+        from src.eval.retrieval_metrics import _recall_at_k
+        retrieved = [0, 1, 2, 3, 4]
+        relevant_set = {1, 3, 5}
+        recall = _recall_at_k(retrieved, relevant_set, 3)
+        assert recall < 1.0  # Not all relevant docs in top 3
+
+    def test_precision_at_k(self):
+        from src.eval.retrieval_metrics import _precision_at_k
+        retrieved = [0, 1, 2, 3, 4]
+        relevant_set = {0, 2}
+        precision = _precision_at_k(retrieved, relevant_set, 5)
+        assert precision == 0.4  # 2 relevant out of 5
+
+    def test_evaluate_retrieval(self):
+        from src.eval.retrieval_metrics import evaluate_retrieval
+
+        def mock_retriever(query):
+            # Return document IDs (0-9)
+            return list(range(10))
+
+        queries = [
+            {"query": "test1", "relevant_ids": {0, 1, 2}},
+            {"query": "test2", "relevant_ids": {3, 4}},
+            {"query": "test3", "relevant_ids": {5}},
+        ]
+
+        result = evaluate_retrieval(queries, mock_retriever)
+        assert result.total_queries == 3
+        assert result.ndcg_at_10 > 0
+        assert result.mrr > 0
+        assert result.recall_at_5 > 0
+        assert result.hit_rate > 0
+
+    def test_evaluate_empty_queries(self):
+        from src.eval.retrieval_metrics import evaluate_retrieval
+
+        def mock_retriever(query):
+            return []
+
+        result = evaluate_retrieval([], mock_retriever)
+        assert result.total_queries == 0
+        assert result.ndcg_at_10 == 0.0

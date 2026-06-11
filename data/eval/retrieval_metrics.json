@@ -1,0 +1,39 @@
+{
+  "ndcg_at_10": 0.7103099178571526,
+  "mrr": 0.611111111111111,
+  "recall_at_5": 0.0,
+  "recall_at_10": 0.0,
+  "precision_at_5": 0.0,
+  "precision_at_10": 0.0,
+  "hit_rate": 1.0,
+  "total_queries": 3,
+  "per_query": [
+    {
+      "query": "Microsoft revenue",
+      "ndcg_at_10": 1.0,
+      "mrr": 1.0,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "relevant_count": 1,
+      "retrieved_count": 5
+    },
+    {
+      "query": "Amazon revenue",
+      "ndcg_at_10": 0.6309297535714575,
+      "mrr": 0.5,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "relevant_count": 1,
+      "retrieved_count": 5
+    },
+    {
+      "query": "Tesla risks",
+      "ndcg_at_10": 0.5,
+      "mrr": 0.3333333333333333,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "relevant_count": 1,
+      "retrieved_count": 5
+    }
+  ]
+}
