@@ -6,11 +6,10 @@ import json
 import logging
 import re
 import time
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, TypedDict
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
 
 from src.config import settings
@@ -38,6 +37,7 @@ class AgentState(TypedDict):
     steps: list[dict]
     reflection_count: int
     answer: str
+    needs_retry: bool
 
 
 # ── Tool Definitions ──────────────────────────────────────────────
@@ -143,12 +143,17 @@ TOOLS = [
 
 def planner_node(state: AgentState) -> dict:
     """Plan which tools to use for the query."""
-    llm = OllamaClient()
-    query = state["query"]
-    conv_context = memory.get_context_string()
+    from src.ml.routing import CostAwareRouter
 
-    complexity = llm.classify_complexity(query)
-    model = llm.select_model(complexity)
+    query = state["query"]
+
+    # Use trained classifier for routing (not keyword matching)
+    router = CostAwareRouter()
+    routing_result = router.route(query)
+    complexity = routing_result.complexity
+    model = routing_result.model
+
+    llm = OllamaClient()
 
     plan_prompt = f"""Analyze this financial query and decide which tools to use.
 
@@ -314,11 +319,10 @@ def reflector_node(state: AgentState) -> dict:
     llm = OllamaClient()
     query = state["query"]
     answer = state.get("answer", "")
-    context = state.get("context", "")
     reflection_count = state.get("reflection_count", 0)
 
     if reflection_count >= 2:
-        return {"reflection_count": reflection_count}
+        return {"reflection_count": reflection_count, "needs_retry": False}
 
     prompt = f"""Evaluate this answer to a financial query.
 
@@ -343,20 +347,24 @@ Respond with JSON:
             if reflection.get("needs_improvement"):
                 return {
                     "reflection_count": reflection_count + 1,
+                    "needs_retry": True,
                     "steps": state.get("steps", []) + [{"action": "reflect", "issues": reflection.get("issues", [])}],
                 }
     except json.JSONDecodeError:
         pass
 
-    return {"reflection_count": reflection_count}
+    return {"reflection_count": reflection_count, "needs_retry": False}
 
 
 def should_continue(state: AgentState) -> str:
     """Decide whether to continue reflecting or end."""
+    # Stop after max reflections
     if state.get("reflection_count", 0) >= 2:
         return "end"
-    if state.get("answer"):
+    # Stop if we have a good answer (no issues found by reflector)
+    if state.get("answer") and not state.get("needs_retry"):
         return "end"
+    # Continue to tools if retry is needed
     return "tools"
 
 
@@ -400,8 +408,8 @@ def _build_context_from_tools(context_data: dict) -> str:
     return "\n\n---\n\n".join(parts[:10])
 
 
-def _extract_citations(query: str, context: dict) -> list[str]:
-    """Extract relevant citations."""
+def _extract_citations(query: str, context: str | dict) -> list[str]:
+    """Extract relevant citations from context (str or dict)."""
     query_lower = query.lower()
     mentioned = set()
 
@@ -424,6 +432,21 @@ def _extract_citations(query: str, context: dict) -> list[str]:
     citations = []
     seen = set()
 
+    # Handle string context (parse from text)
+    if isinstance(context, str):
+        import re
+        # Extract ticker-year patterns from context text
+        pattern = r'\[([A-Z]{2,5})\s+(\d{4})\]'
+        for match in re.finditer(pattern, context):
+            ticker, year = match.groups()
+            key = f"{ticker}_{year}"
+            if key not in seen:
+                if not mentioned or ticker in mentioned:
+                    seen.add(key)
+                    citations.append(f"{ticker} {year}")
+        return citations[:5]
+
+    # Handle dict context (original format)
     for tool_name, result_str in context.items():
         try:
             results = json.loads(result_str) if isinstance(result_str, str) else result_str
@@ -500,6 +523,7 @@ class LangGraphOrchestrator:
             "steps": [],
             "reflection_count": 0,
             "answer": "",
+            "needs_retry": False,
         }
 
         config = {"configurable": {"thread_id": thread_id}}

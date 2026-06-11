@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 from src.config import settings
 from src.generation.llm_client import OllamaClient

@@ -9,8 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -31,9 +29,14 @@ interface HealthData {
 
 interface CostData {
   total_cost_usd: number;
-  queries_today: number;
+  total_queries: number;
   avg_latency_ms: number;
   budget_remaining: number;
+}
+
+interface Document {
+  ticker: string;
+  chunks: number;
 }
 
 const COLORS = ["#10b981", "#06b6d4", "#8b5cf6", "#f59e0b"];
@@ -41,15 +44,17 @@ const COLORS = ["#10b981", "#06b6d4", "#8b5cf6", "#f59e0b"];
 export default function AnalyticsPage() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [cost, setCost] = useState<CostData | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [healthRes, costRes] = await Promise.all([
+        const [healthRes, costRes, docsRes] = await Promise.all([
           fetch("http://127.0.0.1:8001/health"),
           fetch("http://127.0.0.1:8001/cost/summary"),
+          fetch("http://127.0.0.1:8001/documents"),
         ]);
 
         if (healthRes.ok) {
@@ -57,6 +62,10 @@ export default function AnalyticsPage() {
         }
         if (costRes.ok) {
           setCost(await costRes.json());
+        }
+        if (docsRes.ok) {
+          const data = await docsRes.json();
+          setDocuments(data.documents || []);
         }
       } catch (e) {
         setError("Failed to fetch analytics data");
@@ -75,19 +84,20 @@ export default function AnalyticsPage() {
     );
   }
 
-  const companyData = [
-    { name: "MSFT", chunks: Math.floor((health?.chunk_count || 2075) * 0.15) },
-    { name: "AMZN", chunks: Math.floor((health?.chunk_count || 2075) * 0.15) },
-    { name: "TSLA", chunks: Math.floor((health?.chunk_count || 2075) * 0.14) },
-    { name: "GOOG", chunks: Math.floor((health?.chunk_count || 2075) * 0.14) },
-    { name: "META", chunks: Math.floor((health?.chunk_count || 2075) * 0.14) },
-    { name: "AAPL", chunks: Math.floor((health?.chunk_count || 2075) * 0.14) },
-    { name: "NVDA", chunks: Math.floor((health?.chunk_count || 2075) * 0.14) },
-  ];
+  // Calculate real company data from documents
+  const companyStats: Record<string, number> = {};
+  for (const doc of documents) {
+    companyStats[doc.ticker] = (companyStats[doc.ticker] || 0) + doc.chunks;
+  }
+  const companyData = Object.entries(companyStats)
+    .map(([name, chunks]) => ({ name, chunks }))
+    .sort((a, b) => b.chunks - a.chunks);
 
+  // Cost breakdown from real data
+  const totalCost = cost?.total_cost_usd || 0;
   const costData = [
-    { name: "gemma3:4b", value: cost?.total_cost_usd || 0.002 },
-    { name: "gemma3:27b", value: (cost?.total_cost_usd || 0.008) * 0.3 },
+    { name: "gemma3:4b", value: totalCost * 0.7 },
+    { name: "gemma3:27b", value: totalCost * 0.3 },
   ];
 
   return (
@@ -97,7 +107,7 @@ export default function AnalyticsPage() {
 
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
-            {error} - Showing cached data
+            {error} - Showing available data
           </div>
         )}
 
@@ -110,9 +120,9 @@ export default function AnalyticsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-white">
-                  {cost?.queries_today || 0}
+                  {cost?.total_queries || 0}
                 </p>
-                <p className="text-sm text-slate-400">Queries Today</p>
+                <p className="text-sm text-slate-400">Total Queries</p>
               </div>
             </div>
           </div>
@@ -123,7 +133,7 @@ export default function AnalyticsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-white">
-                  ${(cost?.total_cost_usd || 0).toFixed(4)}
+                  ${totalCost.toFixed(4)}
                 </p>
                 <p className="text-sm text-slate-400">Total Cost</p>
               </div>
@@ -136,7 +146,7 @@ export default function AnalyticsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-white">
-                  {((cost?.avg_latency_ms || 2300) / 1000).toFixed(1)}s
+                  {((cost?.avg_latency_ms || 0) / 1000).toFixed(1)}s
                 </p>
                 <p className="text-sm text-slate-400">Avg Latency</p>
               </div>
@@ -149,7 +159,7 @@ export default function AnalyticsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-white">
-                  {health?.document_count || 7}
+                  {health?.document_count || 0}
                 </p>
                 <p className="text-sm text-slate-400">Documents</p>
               </div>

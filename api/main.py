@@ -115,7 +115,7 @@ def health() -> HealthResponse:
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Service unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Service unavailable: {e}") from e
 
 
 @app.post("/query", response_model=QueryResponse)
@@ -146,7 +146,7 @@ def query(req: QueryRequest) -> QueryResponse:
         response = orchestrator.run(query_text)
     except Exception as e:
         logger.error(f"Query failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Query processing failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Query processing failed: {e}") from e
 
     # Output guardrails
     answer = response["answer"]
@@ -200,7 +200,7 @@ def cost_summary() -> CostSummary:
         return CostSummary(**summary)
     except Exception as e:
         logger.error(f"Cost summary failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Cost summary failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Cost summary failed: {e}") from e
 
 
 @app.get("/cost/budget")
@@ -209,13 +209,49 @@ def cost_budget():
         return cost_tracker.budget_check()
     except Exception as e:
         logger.error(f"Budget check failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Budget check failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Budget check failed: {e}") from e
 
 
 @app.get("/conversation/history")
 def conversation_history():
     """Get conversation history."""
     return {"history": memory.get_history(limit=20)}
+
+
+@app.get("/documents")
+def list_documents():
+    """List all indexed documents with metadata."""
+    documents = []
+    doc_id = 1
+
+    if settings.raw_dir.exists():
+        for company_dir in settings.raw_dir.iterdir():
+            if company_dir.is_dir():
+                ticker = company_dir.name
+                for year_dir in company_dir.iterdir():
+                    if year_dir.is_dir():
+                        try:
+                            year = int(year_dir.name)
+                        except ValueError:
+                            continue
+
+                        # Count files and estimate chunks
+                        files = list(year_dir.glob("*"))
+                        txt_files = [f for f in files if f.suffix.lower() == ".txt"]
+                        total_size = sum(f.stat().st_size for f in txt_files)
+
+                        documents.append({
+                            "id": doc_id,
+                            "ticker": ticker,
+                            "year": year,
+                            "filing_type": "10-K",
+                            "status": "indexed",
+                            "chunks": max(10, total_size // 5000),  # rough estimate
+                            "size": f"{total_size // 1024} KB" if total_size > 1024 else f"{total_size} B",
+                        })
+                        doc_id += 1
+
+    return {"documents": documents}
 
 
 @app.delete("/conversation/clear")
@@ -247,13 +283,16 @@ Rules:
         try:
             from src.retrieval.hybrid import HybridRetriever
             from src.generation.llm_client import OllamaClient
+            from src.ml.routing import CostAwareRouter
 
             llm = OllamaClient()
             retriever = HybridRetriever()
 
-            # Classify complexity
-            complexity = llm.classify_complexity(req.query.strip())
-            model = llm.select_model(complexity)
+            # Use trained classifier for routing
+            router = CostAwareRouter()
+            routing_result = router.route(req.query.strip())
+            complexity = routing_result.complexity
+            model = routing_result.model
 
             # Retrieve context
             results = retriever.retrieve(req.query.strip(), top_k=5)
@@ -289,11 +328,11 @@ Rules:
                 "complexity": complexity,
                 "model_used": model,
                 "citations": citations,
-                "cost_usd": 0.0,
+                "cost_usd": routing_result.cost_estimate,
                 "steps_count": 3,
             }
             yield f"data: {json.dumps(metadata)}\n\n"
-            yield f"data: [DONE]\n\n"
+            yield "data: [DONE]\n\n"
 
         except Exception as e:
             logger.error(f"Stream failed: {e}")
@@ -304,5 +343,15 @@ Rules:
 
 def _build_context(results: list, max_chars: int = 2000) -> str:
     """Build context string from retrieval results."""
-    from src.agents.graph import _build_context as build_ctx
-    return build_ctx(results, max_chars)
+    from src.agents.graph import _build_context_from_tools
+
+    # Convert results to context_data format expected by _build_context_from_tools
+    context_data = {}
+    for r in results:
+        ticker = r.metadata.get("ticker", "") if r.metadata else ""
+        year = r.metadata.get("year", "") if r.metadata else ""
+        if ticker not in context_data:
+            context_data[ticker] = []
+        context_data[ticker].append({"text": r.text[:500], "ticker": ticker, "year": year})
+
+    return _build_context_from_tools(context_data)

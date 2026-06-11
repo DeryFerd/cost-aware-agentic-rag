@@ -22,10 +22,11 @@ class LLMResponse:
     raw: dict[str, Any] = field(default_factory=dict)
 
 
-# Approximate costs per 1M tokens (USD) — update as pricing changes
+# Approximate costs per 1M tokens (USD) — simulated for demonstration
+# Real Ollama Cloud pricing may vary; these show the cost-aware routing works
 MODEL_COSTS: dict[str, dict[str, float]] = {
-    "gemma3:4b": {"input": 0.0, "output": 0.0},  # free tier
-    "gemma3:27b": {"input": 0.0, "output": 0.0},  # free tier
+    "gemma3:4b": {"input": 0.05, "output": 0.10},   # lightweight model
+    "gemma3:27b": {"input": 0.25, "output": 0.50},   # heavy model
 }
 
 

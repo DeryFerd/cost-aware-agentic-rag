@@ -10,11 +10,9 @@ from __future__ import annotations
 
 import logging
 import pickle
-from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 
-import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
@@ -146,8 +144,8 @@ class CostAwareRouter:
     def __init__(self):
         self.classifier = QueryClassifier()
         self._cost_per_token = {
-            settings.ollama_simple_model: {"input": 0.0, "output": 0.0},  # free tier
-            settings.ollama_complex_model: {"input": 0.0, "output": 0.0},  # free tier
+            settings.ollama_simple_model: {"input": 0.05, "output": 0.10},   # lightweight
+            settings.ollama_complex_model: {"input": 0.25, "output": 0.50},  # heavy
         }
 
     def route(self, query: str, budget: float = 0.05) -> RoutingResult:

@@ -139,8 +139,6 @@ def rebuild_index():
 @app.task(name="tasks.cleanup_old_cache")
 def cleanup_old_cache():
     """Clean up old cache entries."""
-    from src.database.cache import cache
-
     # This would implement cache cleanup logic
     logger.info("Cleaning up old cache entries")
     return {"status": "success"}

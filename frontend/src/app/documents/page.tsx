@@ -6,7 +6,6 @@ import {
   Search,
   Download,
   Eye,
-  Calendar,
   CheckCircle2,
   Loader2,
   AlertCircle,
@@ -16,7 +15,7 @@ interface Document {
   id: number;
   ticker: string;
   year: number;
-  filingType: string;
+  filing_type: string;
   status: "indexed" | "processing" | "error";
   chunks: number;
   size: string;
@@ -37,47 +36,20 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [filterCompany, setFilterCompany] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDocuments() {
       try {
-        const res = await fetch("http://127.0.0.1:8001/health");
+        const res = await fetch("http://127.0.0.1:8001/documents");
         if (res.ok) {
           const data = await res.json();
-          // Generate document list from health data
-          const tickers = ["MSFT", "AMZN", "TSLA", "GOOG", "META", "AAPL", "NVDA"];
-          const years = [2022, 2023, 2024, 2025];
-          const docs: Document[] = [];
-          let id = 1;
-
-          for (const ticker of tickers) {
-            for (const year of years) {
-              // Skip some non-existent combinations
-              if (ticker === "GOOG" && year < 2024) continue;
-              if (ticker === "META" && year < 2024) continue;
-              if (ticker === "AAPL" && year < 2024) continue;
-              if (ticker === "NVDA" && year < 2024) continue;
-
-              docs.push({
-                id: id++,
-                ticker,
-                year,
-                filingType: "10-K",
-                status: "indexed",
-                chunks: Math.floor(Math.random() * 100) + 10,
-                size: `${Math.floor(Math.random() * 200) + 50} KB`,
-              });
-            }
-          }
-          setDocuments(docs);
+          setDocuments(data.documents || []);
+        } else {
+          setError("Failed to fetch documents");
         }
       } catch (e) {
-        // Use minimal fallback data
-        setDocuments([
-          { id: 1, ticker: "MSFT", year: 2024, filingType: "10-K", status: "indexed", chunks: 188, size: "292 KB" },
-          { id: 2, ticker: "AMZN", year: 2024, filingType: "10-K", status: "indexed", chunks: 150, size: "200 KB" },
-          { id: 3, ticker: "TSLA", year: 2024, filingType: "10-K", status: "indexed", chunks: 120, size: "180 KB" },
-        ]);
+        setError("Cannot connect to API");
       } finally {
         setLoading(false);
       }
@@ -115,6 +87,12 @@ export default function DocumentsPage() {
             </p>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+            {error}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex gap-4 mb-6">
@@ -154,12 +132,12 @@ export default function DocumentsPage() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`px-3 py-1.5 rounded-lg ${companyColors[doc.ticker]}`}
+                    className={`px-3 py-1.5 rounded-lg ${companyColors[doc.ticker] || "bg-slate-500/20 text-slate-400"}`}
                   >
                     <span className="font-bold">{doc.ticker}</span>
                   </div>
                   <div>
-                    <p className="text-white font-medium">{doc.year} {doc.filingType}</p>
+                    <p className="text-white font-medium">{doc.year} {doc.filing_type}</p>
                     <p className="text-sm text-slate-400">{doc.size}</p>
                   </div>
                 </div>

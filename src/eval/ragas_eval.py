@@ -34,7 +34,7 @@ class RAGASEvaluator:
         self.llm = llm
         self._ragas_available = False
         try:
-            import ragas
+            import ragas  # noqa: F401
             self._ragas_available = True
             logger.info("RAGAS available for evaluation")
         except ImportError:

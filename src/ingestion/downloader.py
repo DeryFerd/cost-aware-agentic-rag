@@ -64,7 +64,6 @@ def _get_filing_accessions(cik: str, form_type: str = "10-K") -> list[dict]:
 
 def _download_filing_document(cik: str, accession: str, dest: Path) -> Path | None:
     """Download the primary filing document."""
-    cik_padded = cik.zfill(10)
     acc_no_dashes = accession.replace("-", "")
 
     # Try to get the filing index

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from src.config import settings
 from src.ingestion.downloader import download_sample_dataset, TARGET_COMPANIES
@@ -68,7 +67,7 @@ def run_ingestion(skip_download: bool = False) -> dict:
     }
 
     print(f"\n{'=' * 60}")
-    print(f"  Ingestion Complete!")
+    print("  Ingestion Complete!")
     print(f"  Total chunks: {stats['total_chunks']}")
     print(f"  Vector store: {stats['vector_store_count']}")
     print(f"  BM25 index:   {stats['bm25_count']}")

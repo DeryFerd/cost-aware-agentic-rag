@@ -10,7 +10,6 @@ Redis for caching. These models will be needed when implementing:
 """
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     Column,
