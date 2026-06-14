@@ -84,7 +84,13 @@ class OllamaClient:
         )
 
     def classify_complexity(self, query: str) -> str:
-        """Quick heuristic + LLM classification for routing."""
+        """Quick heuristic + LLM classification for routing.
+
+        .. deprecated::
+            Use ``CostAwareRouter.route()`` from ``src.ml.routing`` instead.
+            This method is kept as a fallback for ``CostAwareRouter._llm_classify``
+            when the trained classifier confidence is low.
+        """
         # Rule-based fast path
         q = query.lower()
         simple_keywords = ["what is", "define", "when did", "who is", "list", "show me"]

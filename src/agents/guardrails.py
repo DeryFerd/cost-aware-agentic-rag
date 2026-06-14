@@ -3,7 +3,7 @@
 Provides:
 1. Input validation (query length, content filtering)
 2. Output grounding checks (hallucination detection)
-3. PII detection and redaction
+3. PII detection and redaction (regex + SpaCy NER when available)
 """
 
 from __future__ import annotations
@@ -14,6 +14,17 @@ from dataclasses import dataclass
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Try SpaCy for NER-based PII detection
+_SPACY_AVAILABLE = False
+_spacy_nlp = None
+try:
+    import spacy
+    _spacy_nlp = spacy.load("en_core_web_sm", disable=["parser", "lemmatizer"])
+    _SPACY_AVAILABLE = True
+    logger.info("SpaCy NER available for PII detection")
+except (ImportError, OSError):
+    logger.info("SpaCy not available, using regex-only PII detection")
 
 
 @dataclass
@@ -35,12 +46,22 @@ class InputGuardrails:
     MAX_QUERY_LENGTH = 2000
     MIN_QUERY_LENGTH = 3
 
-    # PII patterns
+    # PII patterns (regex fallback)
     PII_PATTERNS = {
         "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
         "phone": r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b",
         "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
         "credit_card": r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b",
+    }
+
+    # SpaCy NER labels that map to PII types
+    SPACY_PII_LABELS = {
+        "PERSON": "name",
+        "ORG": "organization",
+        "GPE": "location",
+        "LOC": "location",
+        "MONEY": "financial",
+        "DATE": "date",
     }
 
     # Blocked patterns (prompt injection attempts)
@@ -81,11 +102,16 @@ class InputGuardrails:
                     issues=["prompt_injection_detected"],
                 )
 
-        # Detect and redact PII
+        # Detect and redact PII (regex patterns)
         for pii_type, pattern in self.PII_PATTERNS.items():
             if re.search(pattern, sanitized, re.IGNORECASE):
                 sanitized = re.sub(pattern, f"[REDACTED_{pii_type.upper()}]", sanitized)
                 issues.append(f"pii_{pii_type}_redacted")
+
+        # NER-based PII detection (SpaCy)
+        if _SPACY_AVAILABLE and _spacy_nlp is not None:
+            sanitized, ner_issues = self._ner_redact(sanitized)
+            issues.extend(ner_issues)
 
         passed = len(issues) == 0 or all("truncated" in i or "redacted" in i for i in issues)
 
@@ -95,6 +121,24 @@ class InputGuardrails:
             sanitized_input=sanitized,
             issues=issues,
         )
+
+    def _ner_redact(self, text: str) -> tuple[str, list[str]]:
+        """Use SpaCy NER to detect and redact PII entities."""
+        issues = []
+        doc = _spacy_nlp(text)
+        redacted = text
+
+        # Process entities in reverse order to preserve offsets
+        for ent in reversed(doc.ents):
+            if ent.label_ in self.SPACY_PII_LABELS:
+                pii_type = self.SPACY_PII_LABELS[ent.label_]
+                # Only redact short entities (likely PII, not company names in financial context)
+                if len(ent.text) < 40 and pii_type in ("name", "location", "financial"):
+                    replacement = f"[REDACTED_{pii_type.upper()}]"
+                    redacted = redacted[:ent.start_char] + replacement + redacted[ent.end_char:]
+                    issues.append(f"ner_{ent.label_.lower()}_redacted")
+
+        return redacted, issues
 
 
 class OutputGuardrails:
