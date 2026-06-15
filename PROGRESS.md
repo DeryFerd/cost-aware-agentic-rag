@@ -101,12 +101,14 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 - **Langfuse observability** — Tracks every query in LangGraphOrchestrator
 - **Evaluation framework** — Demo script, saves results to data/eval/
 
-### ✅ Phase 21: Roast Review Final Fixes (This Session)
+### ✅ Phase 21: Roast Review Final Fixes + LLM-as-Judge Evaluation
 - **Improved heuristic evaluation** — Bigram overlap, removed magic multipliers (1.5×)
 - **NER-based guardrails** — SpaCy NER for PII detection (optional, regex fallback)
-- **Expanded golden dataset** — 10 → 50 samples for proper evaluation baseline
+- **Expanded golden dataset** — 10 → 55 samples for proper evaluation baseline
 - **RAGAS installed** — ragas==0.4.3 for real evaluation
 - **classify_complexity deprecated** — Added deprecation notice, kept as fallback
+- **LLM-as-Judge evaluation** — minimax-m3:cloud via Ollama Cloud
+- **Evaluation Results**: Overall 0.85 (F=0.60, R=0.92, P=0.97, Rc=1.00)
 
 ---
 
@@ -224,6 +226,7 @@ cost-aware-agentic-rag/
 │   │   └── routing.py            # CostAwareRouter (trained classifier)
 │   ├── eval/
 │   │   ├── ragas_eval.py         # RAGAS evaluation (bigram + unigram heuristics)
+│   │   ├── llm_judge.py          # NEW: LLM-as-Judge evaluation (minimax-m3)
 │   │   ├── retrieval_metrics.py  # NDCG, MRR, Recall@K, Precision@K
 │   │   └── golden_set.py         # Golden dataset for evaluation
 │   ├── observability/
@@ -239,7 +242,8 @@ cost-aware-agentic-rag/
 │   ├── evaluate.py               # Run evaluation
 │   ├── evaluate_ml.py            # ML evaluation
 │   ├── eval_ragas.py             # RAGAS evaluation
-│   └── eval_demo.py              # Demo evaluation (no external deps)
+│   ├── eval_demo.py              # Demo evaluation (no external deps)
+│   └── eval_llm_judge.py         # NEW: LLM-as-Judge evaluation (55 samples)
 ├── tests/
 │   ├── conftest.py               # Pytest fixtures (mock_llm, mock_redis)
 │   ├── test_config.py            # 5 basic tests
@@ -247,7 +251,8 @@ cost-aware-agentic-rag/
 ├── data/
 │   ├── raw/                      # SEC filings
 │   └── eval/                     # Evaluation results
-│       ├── ragas_results.json
+│       ├── ragas_results.json    # Heuristic evaluation
+│       ├── llm_judge_results.json # NEW: LLM-as-Judge evaluation
 │       └── retrieval_metrics.json
 ├── docker-compose.yml            # Docker services
 ├── Dockerfile                    # API container

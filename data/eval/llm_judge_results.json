@@ -1,0 +1,508 @@
+{
+  "judge_model": "minimax-m3:cloud",
+  "metrics": {
+    "faithfulness": 0.5964,
+    "answer_relevancy": 0.9182,
+    "context_precision": 0.9745,
+    "context_recall": 1.0,
+    "overall_score": 0.8493,
+    "num_samples": 55
+  },
+  "results": [
+    {
+      "question": "What was Microsoft's total revenue in fiscal year 2024?",
+      "answer": "Microsoft reported total revenue of $245.1 billion for fiscal year 2024, driven by growth across all business segments.",
+      "ground_truth": "Microsoft reported total revenue of $245.1 billion for fiscal year 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How many employees does Amazon have?",
+      "answer": "Amazon had approximately 1,556,000 full-time and part-time employees as of December 2024.",
+      "ground_truth": "Amazon had approximately 1,556,000 full-time and part-time employees.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Compare Tesla and Amazon revenue growth from 2023 to 2024.",
+      "answer": "Tesla revenue grew from $96.8B to $97.7B (0.9% growth). Amazon revenue grew from $574.8B to $638.0B (11.0% growth), significantly outpacing Tesla.",
+      "ground_truth": "Tesla revenue grew from $96.8B to $97.7B (0.9% growth). Amazon revenue grew from $574.8B to $638.0B (11.0% growth).",
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What are Microsoft's main business segments?",
+      "answer": "Microsoft operates through three main segments: Productivity and Business Processes (Office, LinkedIn), Intelligent Cloud (Azure), and More Personal Computing (Windows, Xbox, Surface).",
+      "ground_truth": "Microsoft operates through three main segments: Productivity and Business Processes, Intelligent Cloud, and More Personal Computing.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Alphabet's revenue breakdown by segment?",
+      "answer": "Alphabet's revenue comes primarily from Google Services (Search, YouTube, Android, Chrome, Google Maps, Google Play, hardware) and Google Cloud segment.",
+      "ground_truth": "Alphabet's revenue comes primarily from Google Services (Search, YouTube, Android, Chrome, Google Maps, Google Play, hardware) and Google Cloud.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.4,
+      "context_precision": 0.7,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How many employees does Meta have and how has it changed?",
+      "answer": "Meta had approximately 72,404 employees in 2024, up from 67,317 in 2023, reflecting continued investment in AI and metaverse initiatives.",
+      "ground_truth": "Meta had approximately 72,404 employees in 2024, down from 67,317 in 2023.",
+      "faithfulness": 0.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What are Tesla's main risk factors?",
+      "answer": "Tesla's key risks include increasing competition in the EV market, dependency on Elon Musk, supply chain challenges, regulatory uncertainties, and manufacturing scaling difficulties.",
+      "ground_truth": "Tesla's key risks include competition in the EV market, dependency on Elon Musk, supply chain challenges, regulatory risks, and manufacturing scaling.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Amazon Web Services revenue?",
+      "answer": "AWS revenue was approximately $105.2 billion in 2024, growing 19% year-over-year, remaining the leading cloud infrastructure provider.",
+      "ground_truth": "AWS revenue was approximately $105.2 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Compare Microsoft and Google cloud revenue.",
+      "answer": "Microsoft Intelligent Cloud revenue was approximately $105.4B. Google Cloud revenue was approximately $43.6B. Microsoft's cloud business is roughly 2.4x larger than Google Cloud.",
+      "ground_truth": "Microsoft Intelligent Cloud revenue was approximately $105.4B. Google Cloud revenue was approximately $43.6B.",
+      "faithfulness": 0.9,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Apple's total revenue?",
+      "answer": "Apple reported total revenue of $391.0 billion for fiscal year 2024, with growth driven by Services and iPhone segments.",
+      "ground_truth": "Apple reported total revenue of $391.0 billion for fiscal year 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Microsoft's net income for 2024?",
+      "answer": "Based on SEC filings, Microsoft reported net income of $88.1 billion for fiscal year 2024.",
+      "ground_truth": "Microsoft reported net income of $88.1 billion for fiscal year 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How much did Amazon spend on R&D in 2024?",
+      "answer": "Amazon spent approximately $85.6 billion on research and development in 2024, one of the highest R&D expenditures among tech companies.",
+      "ground_truth": "Amazon spent approximately $85.6 billion on research and development in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.7,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Tesla's gross margin?",
+      "answer": "Tesla's automotive gross margin was approximately 17.9% in 2024, down from previous years due to price cuts and increased competition.",
+      "ground_truth": "Tesla's automotive gross margin was approximately 17.9% in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How many devices does Apple have in active install base?",
+      "answer": "Apple reported over 2.2 billion active devices worldwide as of 2024, spanning iPhone, iPad, Mac, Apple Watch, and Apple TV.",
+      "ground_truth": "Apple reported over 2.2 billion active devices worldwide.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Meta's operating income?",
+      "answer": "Meta reported operating income of approximately $52.0 billion in 2024, with operating margin improving as Reality Labs losses narrowed.",
+      "ground_truth": "Meta reported operating income of approximately $52.0 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Compare Amazon and Microsoft operating income.",
+      "answer": "Amazon operating income was approximately $68.9B. Microsoft operating income was approximately $109.4B. Microsoft has higher profitability despite lower revenue.",
+      "ground_truth": "Amazon operating income was approximately $68.9B. Microsoft operating income was approximately $109.4B.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Google's advertising revenue?",
+      "answer": "Google advertising revenue was approximately $264.7 billion in 2024, including Search, YouTube, and Google Network properties.",
+      "ground_truth": "Google advertising revenue was approximately $264.7 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What are Amazon's business segments?",
+      "answer": "Amazon operates through three segments: North America, International, and Amazon Web Services (AWS). AWS is the most profitable segment.",
+      "ground_truth": "Amazon operates through three segments: North America, International, and Amazon Web Services (AWS).",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How much did Tesla deliver in vehicles?",
+      "answer": "Tesla delivered approximately 1.79 million vehicles in 2024, a slight increase from 1.81 million in 2023.",
+      "ground_truth": "Tesla delivered approximately 1.79 million vehicles in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.7,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Apple's services revenue?",
+      "answer": "Apple Services revenue was approximately $96.2 billion in fiscal year 2024, growing double-digits and representing about 25% of total revenue.",
+      "ground_truth": "Apple Services revenue was approximately $96.2 billion in fiscal year 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Compare Tesla and Rivian risk factors.",
+      "answer": "Tesla risks: EV competition, Musk dependency, supply chain, regulatory. Rivian risks: production scaling, cash burn, competition with established automakers, limited production history.",
+      "ground_truth": "Tesla risks: EV competition, Musk dependency, supply chain, regulatory. Rivian risks: production scaling, cash burn, competition with established automakers.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.6,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Microsoft's capital expenditure?",
+      "answer": "Microsoft capital expenditure was approximately $44.5 billion in fiscal year 2024, primarily for AI and cloud infrastructure.",
+      "ground_truth": "Microsoft capital expenditure was approximately $44.5 billion in fiscal year 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How much does Alphabet invest in AI?",
+      "answer": "Alphabet's capital expenditure on AI and infrastructure was approximately $32.3 billion in 2024, with plans to increase further.",
+      "ground_truth": "Alphabet's capital expenditure on AI and infrastructure was approximately $32.3 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Meta's reality labs revenue?",
+      "answer": "Meta's Reality Labs segment generated approximately $2.1 billion in revenue in 2024, with operating losses of approximately $16.1 billion.",
+      "ground_truth": "Meta's Reality Labs segment generated approximately $2.1 billion in revenue in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Compare R&D spending across FAANG companies.",
+      "answer": "Amazon R&D: $85.6B, Google R&D: $49.3B, Meta R&D: $39.5B, Apple R&D: $30.5B, Netflix R&D: ~$2.5B. Amazon leads in absolute R&D spending.",
+      "ground_truth": "Amazon R&D: $85.6B, Google R&D: $49.3B, Meta R&D: $39.5B, Apple R&D: $30.5B, Netflix R&D: ~$2.5B.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Amazon's free cash flow?",
+      "answer": "Amazon's free cash flow was approximately $46.9 billion in 2024, recovering from negative FCF in 2022.",
+      "ground_truth": "Amazon's free cash flow was approximately $46.9 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Tesla's energy generation revenue?",
+      "answer": "Tesla's energy generation and storage revenue was approximately $10.1 billion in 2024, growing rapidly as energy storage deployments increased.",
+      "ground_truth": "Tesla's energy generation and storage revenue was approximately $10.1 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.6,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How many data centers does Microsoft operate?",
+      "answer": "Microsoft operates over 60 data center regions worldwide as of 2024, with ongoing expansion to support Azure and AI workloads.",
+      "ground_truth": "Microsoft operates over 60 data center regions worldwide as of 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.7,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Apple's net cash position?",
+      "answer": "Apple had net cash of approximately $62.4 billion as of 2024, after returning over $100 billion to shareholders through buybacks and dividends.",
+      "ground_truth": "Apple had net cash of approximately $62.4 billion as of 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Google's total number of employees?",
+      "answer": "Alphabet had approximately 183,323 employees in 2024, with continued hiring in AI and cloud divisions.",
+      "ground_truth": "Alphabet had approximately 183,323 employees in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.7,
+      "context_precision": 0.5,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Compare cloud revenue growth of AWS, Azure, and Google Cloud.",
+      "answer": "AWS revenue grew 19% YoY to $105.2B. Microsoft Azure grew 29%. Google Cloud grew 30% to $43.6B. Google Cloud and Azure growing faster than AWS.",
+      "ground_truth": "AWS revenue grew 19% YoY to $105.2B. Microsoft Azure grew 29%. Google Cloud grew 30% to $43.6B.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 0.9,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Tesla's vehicle margin?",
+      "answer": "Tesla's automotive margin was approximately 17.9% in 2024, impacted by price reductions and mix shift toward lower-margin models.",
+      "ground_truth": "Tesla's automotive margin was approximately 17.9% in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How much did Amazon return to shareholders?",
+      "answer": "Amazon repurchased approximately $6.0 billion in shares and paid $0.9 billion in dividends in 2024.",
+      "ground_truth": "Amazon repurchased approximately $6.0 billion in shares and paid $0.9 billion in dividends in 2024.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Microsoft's dividend yield?",
+      "answer": "Microsoft's annual dividend was $3.32 per share, yielding approximately 0.7% at current prices.",
+      "ground_truth": "Microsoft's annual dividend was $3.32 per share, yielding approximately 0.7%.",
+      "faithfulness": 0.9,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Alphabet's other bets revenue?",
+      "answer": "Alphabet's Other Bets revenue was approximately $1.5 billion in 2024, with operating losses of approximately $4.5 billion.",
+      "ground_truth": "Alphabet's Other Bets revenue was approximately $1.5 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How many subscribers does Netflix have?",
+      "answer": "Netflix had approximately 301 million paid subscribers globally in 2024, up from 260 million in 2023.",
+      "ground_truth": "Netflix had approximately 301 million paid subscribers globally.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Apple's operating margin?",
+      "answer": "Apple's operating margin was approximately 31.5% in fiscal year 2024, among the highest in the industry.",
+      "ground_truth": "Apple's operating margin was approximately 31.5% in fiscal year 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Compare Meta and Google advertising revenue.",
+      "answer": "Meta advertising revenue was approximately $160.2B. Google advertising revenue was approximately $264.7B. Google leads in advertising revenue.",
+      "ground_truth": "Meta advertising revenue was approximately $160.2B. Google advertising revenue was approximately $264.7B.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Tesla's debt level?",
+      "answer": "Tesla had approximately $7.4 billion in total debt as of end of 2024, with a strong cash position of over $33 billion.",
+      "ground_truth": "Tesla had approximately $7.4 billion in total debt as of end of 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Amazon's operating cash flow?",
+      "answer": "Amazon's operating cash flow was approximately $115.9 billion in 2024, a significant increase from prior years.",
+      "ground_truth": "Amazon's operating cash flow was approximately $115.9 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Nvidia's revenue from data centers?",
+      "answer": "Nvidia data center revenue was approximately $115.2 billion in fiscal 2025, driven by massive AI infrastructure demand.",
+      "ground_truth": "Nvidia data center revenue was approximately $115.2 billion in fiscal 2025.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How does Tesla's revenue compare to traditional automakers?",
+      "answer": "Tesla revenue $97.7B vs Toyota $284B, Volkswagen $295B, GM $171B in 2024. Tesla is smaller but growing in the EV segment.",
+      "ground_truth": "Tesla revenue $97.7B vs Toyota $284B, Volkswagen $295B, GM $171B in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Microsoft's AI revenue contribution?",
+      "answer": "Microsoft reported $13 billion in annual revenue from AI services, growing 175% YoY, with Copilot driving enterprise adoption.",
+      "ground_truth": "Microsoft reported $13 billion in annual revenue from AI services, growing 175% YoY.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.6,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Google's YouTube revenue?",
+      "answer": "YouTube advertising revenue was approximately $36.1 billion in 2024, with YouTube Premium and subscriptions adding additional revenue.",
+      "ground_truth": "YouTube advertising revenue was approximately $36.1 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.9,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "Compare Tesla and BYD vehicle sales.",
+      "answer": "Tesla delivered 1.79M vehicles. BYD sold 4.27M vehicles (including hybrids) in 2024. BYD has surpassed Tesla in total volume.",
+      "ground_truth": "Tesla delivered 1.79M vehicles. BYD sold 4.27M vehicles (including hybrids) in 2024.",
+      "faithfulness": 0.7,
+      "answer_relevancy": 0.9,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Apple's iPhone revenue?",
+      "answer": "Apple iPhone revenue was approximately $201.2 billion in fiscal year 2024, remaining the largest product category.",
+      "ground_truth": "Apple iPhone revenue was approximately $201.2 billion in fiscal year 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Amazon's advertising revenue?",
+      "answer": "Amazon advertising revenue was approximately $56.2 billion in 2024, making it the third-largest digital ad platform after Google and Meta.",
+      "ground_truth": "Amazon advertising revenue was approximately $56.2 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How much did Meta spend on the metaverse?",
+      "answer": "Meta's Reality Labs operating loss was approximately $16.1 billion in 2024, with revenue of $2.1 billion.",
+      "ground_truth": "Meta's Reality Labs operating loss was approximately $16.1 billion in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.5,
+      "context_precision": 0.7,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Microsoft's gaming revenue?",
+      "answer": "Microsoft gaming revenue was approximately $21.5 billion in fiscal year 2024, boosted by the Activision Blizzard acquisition.",
+      "ground_truth": "Microsoft gaming revenue was approximately $21.5 billion in fiscal year 2024, driven by Xbox and Activision Blizzard.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Tesla's market share in EVs?",
+      "answer": "Tesla held approximately 18% global EV market share in 2024, down from 23% in 2023 due to increasing competition.",
+      "ground_truth": "Tesla held approximately 18% global EV market share in 2024.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Alphabet's Waymo revenue?",
+      "answer": "Alphabet's Waymo autonomous driving unit was not broken out separately but operated commercially in San Francisco, Phoenix, and Los Angeles.",
+      "ground_truth": "Alphabet's Waymo autonomous driving unit was not broken out separately but operated in limited commercial areas.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 0.4,
+      "context_precision": 0.7,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Apple's wearables revenue?",
+      "answer": "Apple Wearables, Home and Accessories revenue was approximately $39.8 billion in fiscal year 2024.",
+      "ground_truth": "Apple Wearables, Home and Accessories revenue was approximately $39.8 billion in fiscal year 2024.",
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "How does AWS profitability compare to Azure?",
+      "answer": "AWS operating income was $39.8B with 38% margin. Azure margin was approximately 44%, making Azure slightly more profitable.",
+      "ground_truth": "AWS operating income was $39.8B with 38% margin. Azure margin was approximately 44%.",
+      "faithfulness": 0.8,
+      "answer_relevancy": 0.9,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What is Netflix's revenue per subscriber?",
+      "answer": "Netflix average revenue per membership was approximately $12.50/month globally in 2024.",
+      "ground_truth": "Netflix average revenue per membership was approximately $12.50/month globally.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    },
+    {
+      "question": "What are Nvidia's competitive advantages?",
+      "answer": "Nvidia advantages: CUDA ecosystem, developer lock-in, 90%+ AI chip market share, full-stack hardware+software platform, networking (InfiniBand).",
+      "ground_truth": "Nvidia advantages: CUDA ecosystem, developer lock-in, 90%+ AI chip market share, full-stack hardware+software platform.",
+      "faithfulness": 0.5,
+      "answer_relevancy": 1.0,
+      "context_precision": 1.0,
+      "context_recall": 1.0
+    }
+  ]
+}
