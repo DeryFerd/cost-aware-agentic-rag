@@ -121,6 +121,14 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 - **Feedback buttons** — Thumbs up/down on every AI response
 - **Sidebar updated** — Upload link added to all pages
 
+### 🔄 Phase 23: Model Comparison Dashboard + Cost Optimization
+- **Cost analytics module** — Model comparison, routing breakdown, cost trend, token efficiency
+- **Analytics API** — GET /analytics/models, /analytics/routing, /analytics/trend, /analytics/tokens
+- **Model comparison dashboard** — Side-by-side model performance with visual bars
+- **Routing breakdown** — Query complexity distribution, cost by complexity
+- **Cost trend chart** — Daily cost visualization with configurable period
+- **Token efficiency** — Cost per 1K tokens by model
+
 ---
 
 ## API Endpoints
@@ -141,6 +149,10 @@ DELETE /upload/{id}      - Delete uploaded document
 POST /feedback           - Submit query feedback
 GET  /feedback/stats     - Feedback statistics
 GET  /feedback/recent    - Recent feedback entries
+GET  /analytics/models   - Model comparison metrics
+GET  /analytics/routing  - Routing breakdown and efficiency
+GET  /analytics/trend    - Cost trend over time
+GET  /analytics/tokens   - Cost per token analysis
 ```
 
 ---
@@ -151,6 +163,7 @@ GET  /feedback/recent    - Recent feedback entries
 / (Dashboard)            - Chat with streaming + feedback buttons
 /upload                  - Upload PDF documents
 /analytics               - Charts and metrics (real API)
+/comparison              - Model comparison dashboard (NEW)
 /documents               - SEC filing browser (real API)
 ```
 
@@ -223,6 +236,7 @@ cost-aware-agentic-rag/
 ├── web/templates/                    # HTML templates (Jinja2)
 │   ├── app.html                      # Dashboard (chat + feedback buttons)
 │   ├── upload.html                   # Document upload page
+│   ├── comparison.html               # NEW: Model comparison dashboard
 │   ├── documents.html                # Document browser
 │   └── analytics.html                # Analytics dashboard
 ├── src/
@@ -248,6 +262,7 @@ cost-aware-agentic-rag/
 │   │   └── pipeline.py              # Ingestion pipeline
 │   ├── ml/
 │   │   ├── feedback.py               # NEW: Feedback storage and aggregation
+│   │   ├── cost_analytics.py          # NEW: Model comparison and cost optimization
 │   │   ├── evaluation.py             # ML evaluation
 │   │   └── routing.py                # CostAwareRouter (trained classifier)
 │   │   ├── models.py             # SQLAlchemy models (deprecated notice)

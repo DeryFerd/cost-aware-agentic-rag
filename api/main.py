@@ -44,6 +44,7 @@ from src.ingestion.upload_handler import (
     delete_upload,
 )
 from src.ml.feedback import store_feedback, get_feedback_stats, get_recent_feedback
+from src.ml.cost_analytics import CostAnalytics
 
 logger = logging.getLogger(__name__)
 
@@ -457,6 +458,41 @@ def feedback_stats() -> FeedbackStats:
 def feedback_recent(limit: int = 20):
     """Get recent feedback entries."""
     return {"feedback": get_recent_feedback(limit)}
+
+
+# ── Cost Analytics Endpoints ────────────────────────────────────────
+@app.get("/analytics/models")
+def model_comparison():
+    """Compare performance across models."""
+    analytics = CostAnalytics()
+    return analytics.model_comparison()
+
+
+@app.get("/analytics/routing")
+def routing_breakdown():
+    """Analyze routing efficiency and breakdown."""
+    analytics = CostAnalytics()
+    return analytics.routing_breakdown()
+
+
+@app.get("/analytics/trend")
+def cost_trend(days: int = 7):
+    """Get cost trend over time."""
+    analytics = CostAnalytics()
+    return analytics.cost_trend(days=days)
+
+
+@app.get("/analytics/tokens")
+def cost_per_token():
+    """Analyze cost efficiency per token."""
+    analytics = CostAnalytics()
+    return analytics.cost_per_token()
+
+
+@app.get("/app/comparison", response_class=HTMLResponse)
+def comparison_page(request: Request) -> HTMLResponse:
+    """Model comparison dashboard page."""
+    return templates.TemplateResponse(request, "comparison.html")
 
 
 def _build_context(results: list, max_chars: int = 2000) -> str:

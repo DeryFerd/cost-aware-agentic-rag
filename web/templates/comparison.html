@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Comparison - FinRAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .bar { transition: width 0.5s ease; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-dark-950 text-white min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 glass border-r border-dark-700 flex flex-col">
+        <div class="p-4 border-b border-dark-700">
+            <a href="/" class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <span class="text-xl font-bold gradient-text">FinRAG</span>
+            </a>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="/app" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-comments"></i>
+                <span>Query</span>
+            </a>
+            <a href="/app/upload" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>Upload</span>
+            </a>
+            <a href="/app/documents" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-file-alt"></i>
+                <span>Documents</span>
+            </a>
+            <a href="/app/analytics" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-chart-bar"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="/app/comparison" class="flex items-center space-x-3 px-4 py-3 bg-primary-600/20 text-primary-400 rounded-xl">
+                <i class="fas fa-balance-scale"></i>
+                <span>Model Comparison</span>
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-dark-700">
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span class="text-sm font-medium">System Status</span>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">API</span>
+                        <span id="apiStatus" class="text-green-400">Connected</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">Documents</span>
+                        <span id="docCount" class="text-white">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">Total Cost</span>
+                        <span id="totalCost" class="text-white">$0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">Model Comparison</h1>
+                    <p class="text-dark-400 mt-1">Cost-aware routing performance and optimization insights</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <select id="trendPeriod" class="px-4 py-2 bg-dark-800 border border-dark-600 rounded-xl text-sm focus:outline-none focus:border-primary-500">
+                        <option value="7">Last 7 days</option>
+                        <option value="14">Last 14 days</option>
+                        <option value="30">Last 30 days</option>
+                    </select>
+                    <button onclick="loadAll()" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-xl text-sm transition">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="statsCards">
+                <div class="glass rounded-2xl p-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-database text-blue-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Total Queries</p>
+                            <p class="text-2xl font-bold" id="totalQueries">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-coins text-green-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Total Cost</p>
+                            <p class="text-2xl font-bold" id="totalCostCard">$0.00</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-piggy-bank text-purple-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Estimated Savings</p>
+                            <p class="text-2xl font-bold text-green-400" id="estimatedSavings">$0.00</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-percentage text-yellow-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Savings Rate</p>
+                            <p class="text-2xl font-bold" id="savingsRate">0%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Comparison Table -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-microchip text-primary-400 mr-3"></i>
+                    Model Performance
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-dark-400 text-sm border-b border-dark-700">
+                                <th class="pb-3 font-medium">Model</th>
+                                <th class="pb-3 font-medium">Queries</th>
+                                <th class="pb-3 font-medium">Total Cost</th>
+                                <th class="pb-3 font-medium">Avg Cost</th>
+                                <th class="pb-3 font-medium">Avg Latency</th>
+                                <th class="pb-3 font-medium">P95 Latency</th>
+                                <th class="pb-3 font-medium">Cost Distribution</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelTable" class="divide-y divide-dark-700">
+                            <tr><td colspan="7" class="py-8 text-center text-dark-400">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Routing Breakdown -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Complexity Distribution -->
+                <div class="glass rounded-2xl p-6">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center">
+                        <i class="fas fa-route text-primary-400 mr-3"></i>
+                        Query Complexity Distribution
+                    </h2>
+                    <div id="complexityChart" class="space-y-4">
+                        <p class="text-dark-400 text-sm">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Cost by Complexity -->
+                <div class="glass rounded-2xl p-6">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center">
+                        <i class="fas fa-chart-pie text-primary-400 mr-3"></i>
+                        Cost by Complexity
+                    </h2>
+                    <div id="costByComplexity" class="space-y-4">
+                        <p class="text-dark-400 text-sm">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cost Trend -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-chart-line text-primary-400 mr-3"></i>
+                    Cost Trend
+                </h2>
+                <div id="costTrend" class="h-48 flex items-end space-x-1">
+                    <p class="text-dark-400 text-sm">Loading...</p>
+                </div>
+                <div id="trendLabels" class="flex justify-between mt-2 text-xs text-dark-400"></div>
+            </div>
+
+            <!-- Cost per Token -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-coins text-primary-400 mr-3"></i>
+                    Cost Efficiency (per 1K tokens)
+                </h2>
+                <div id="tokenEfficiency" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <p class="text-dark-400 text-sm">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        const trendPeriod = document.getElementById('trendPeriod');
+
+        trendPeriod.addEventListener('change', loadTrend);
+        loadAll();
+
+        async function loadAll() {
+            await Promise.all([
+                loadModelComparison(),
+                loadRoutingBreakdown(),
+                loadTrend(),
+                loadTokenEfficiency(),
+                loadStats()
+            ]);
+        }
+
+        async function loadStats() {
+            try {
+                const [health, cost] = await Promise.all([
+                    fetch(`${API_BASE}/health`).then(r => r.json()),
+                    fetch(`${API_BASE}/cost/summary`).then(r => r.json())
+                ]);
+                document.getElementById('docCount').textContent = health.document_count || 0;
+                document.getElementById('totalCost').textContent = '$' + (cost.total_cost || 0).toFixed(4);
+                document.getElementById('totalCostCard').textContent = '$' + (cost.total_cost || 0).toFixed(4);
+                document.getElementById('totalQueries').textContent = cost.total_queries || 0;
+            } catch {
+                document.getElementById('apiStatus').textContent = 'Disconnected';
+                document.getElementById('apiStatus').className = 'text-red-400';
+            }
+        }
+
+        async function loadModelComparison() {
+            try {
+                const data = await fetch(`${API_BASE}/analytics/models`).then(r => r.json());
+                const table = document.getElementById('modelTable');
+
+                if (!data.models || data.models.length === 0) {
+                    table.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-dark-400">No query data yet</td></tr>';
+                    return;
+                }
+
+                const maxCost = Math.max(...data.models.map(m => m.total_cost));
+
+                table.innerHTML = data.models.map(m => {
+                    const costPercent = maxCost > 0 ? (m.total_cost / maxCost * 100) : 0;
+                    const modelColor = m.model.includes('27b') ? 'text-purple-400' : 'text-green-400';
+                    const bgColor = m.model.includes('27b') ? 'bg-purple-500' : 'bg-green-500';
+
+                    return `
+                        <tr class="hover:bg-dark-800/50">
+                            <td class="py-4">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 ${m.model.includes('27b') ? 'bg-purple-500/20' : 'bg-green-500/20'} rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-microchip ${modelColor} text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">${m.model}</p>
+                                        <p class="text-dark-400 text-xs">${m.model.includes('27b') ? 'Complex queries' : 'Simple queries'}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 font-medium">${m.query_count}</td>
+                            <td class="py-4">$${m.total_cost.toFixed(6)}</td>
+                            <td class="py-4">$${m.avg_cost.toFixed(6)}</td>
+                            <td class="py-4">${m.avg_latency_ms.toFixed(0)}ms</td>
+                            <td class="py-4">${m.p95_latency_ms.toFixed(0)}ms</td>
+                            <td class="py-4 w-48">
+                                <div class="w-full bg-dark-700 rounded-full h-2">
+                                    <div class="${bgColor} h-2 rounded-full bar" style="width: ${costPercent}%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Update savings from routing
+                const routing = await fetch(`${API_BASE}/analytics/routing`).then(r => r.json());
+                if (routing.routing_efficiency) {
+                    document.getElementById('estimatedSavings').textContent = '$' + routing.routing_efficiency.estimated_savings_usd.toFixed(4);
+                    document.getElementById('savingsRate').textContent = routing.routing_efficiency.savings_percentage.toFixed(1) + '%';
+                }
+            } catch (e) {
+                console.error('Failed to load model comparison:', e);
+            }
+        }
+
+        async function loadRoutingBreakdown() {
+            try {
+                const data = await fetch(`${API_BASE}/analytics/routing`).then(r => r.json());
+                const chart = document.getElementById('complexityChart');
+                const costChart = document.getElementById('costByComplexity');
+
+                if (!data.complexity || Object.keys(data.complexity).length === 0) {
+                    chart.innerHTML = '<p class="text-dark-400 text-sm">No routing data yet</p>';
+                    costChart.innerHTML = '<p class="text-dark-400 text-sm">No cost data yet</p>';
+                    return;
+                }
+
+                // Complexity distribution
+                const colors = { simple: 'bg-green-500', complex: 'bg-purple-500' };
+                const labels = { simple: 'Simple (gemma3:4b)', complex: 'Complex (gemma3:27b)' };
+
+                chart.innerHTML = Object.entries(data.complexity).map(([level, info]) => `
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-dark-300">${labels[level] || level}</span>
+                            <span class="text-white">${info.count} queries (${info.percentage}%)</span>
+                        </div>
+                        <div class="w-full bg-dark-700 rounded-full h-3">
+                            <div class="${colors[level] || 'bg-primary-500'} h-3 rounded-full bar" style="width: ${info.percentage}%"></div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Cost by complexity
+                costChart.innerHTML = Object.entries(data.complexity).map(([level, info]) => `
+                    <div class="flex items-center justify-between p-3 bg-dark-800 rounded-xl">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-3 h-3 ${colors[level] || 'bg-primary-500'} rounded-full"></div>
+                            <span class="text-sm">${labels[level] || level}</span>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-medium">$${info.total_cost.toFixed(6)}</p>
+                            <p class="text-dark-400 text-xs">avg $${info.avg_cost.toFixed(6)}/query</p>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load routing breakdown:', e);
+            }
+        }
+
+        async function loadTrend() {
+            try {
+                const days = trendPeriod.value;
+                const data = await fetch(`${API_BASE}/analytics/trend?days=${days}`).then(r => r.json());
+                const container = document.getElementById('costTrend');
+                const labels = document.getElementById('trendLabels');
+
+                if (!data.daily || data.daily.length === 0) {
+                    container.innerHTML = '<p class="text-dark-400 text-sm">No trend data yet</p>';
+                    labels.innerHTML = '';
+                    return;
+                }
+
+                const maxCost = Math.max(...data.daily.map(d => d.cost), 0.001);
+
+                container.innerHTML = data.daily.map(d => {
+                    const height = (d.cost / maxCost * 100);
+                    return `
+                        <div class="flex-1 flex flex-col items-center justify-end h-full">
+                            <div class="w-full bg-primary-500 rounded-t bar" style="height: ${height}%" title="$${d.cost.toFixed(4)} - ${d.queries} queries"></div>
+                        </div>
+                    `;
+                }).join('');
+
+                labels.innerHTML = data.daily.map(d => `<span>${d.date.slice(5)}</span>`).join('');
+            } catch (e) {
+                console.error('Failed to load trend:', e);
+            }
+        }
+
+        async function loadTokenEfficiency() {
+            try {
+                const data = await fetch(`${API_BASE}/analytics/tokens`).then(r => r.json());
+                const container = document.getElementById('tokenEfficiency');
+
+                if (!data.by_model || data.by_model.length === 0) {
+                    container.innerHTML = '<p class="text-dark-400 text-sm col-span-2">No token data yet</p>';
+                    return;
+                }
+
+                container.innerHTML = data.by_model.map(m => `
+                    <div class="bg-dark-800 rounded-xl p-4">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-10 h-10 ${m.model.includes('27b') ? 'bg-purple-500/20' : 'bg-green-500/20'} rounded-xl flex items-center justify-center">
+                                <i class="fas fa-microchip ${m.model.includes('27b') ? 'text-purple-400' : 'text-green-400'}"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium">${m.model}</p>
+                                <p class="text-dark-400 text-xs">${m.total_tokens.toLocaleString()} tokens</p>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-dark-400">Cost/1K tokens</span>
+                                <span class="font-medium">$${m.cost_per_1k_tokens.toFixed(6)}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-dark-400">Avg tokens/query</span>
+                                <span class="font-medium">${m.avg_tokens_per_query.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-dark-400">Total cost</span>
+                                <span class="font-medium">$${m.total_cost.toFixed(6)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Overall summary
+                if (data.overall) {
+                    container.innerHTML += `
+                        <div class="bg-dark-800 rounded-xl p-4 border border-dark-600">
+                            <p class="text-dark-400 text-sm mb-2">Overall Efficiency</p>
+                            <p class="text-2xl font-bold">$${data.overall.cost_per_1k_tokens.toFixed(6)}<span class="text-sm font-normal text-dark-400"> / 1K tokens</span></p>
+                            <p class="text-dark-400 text-xs mt-1">${data.overall.total_tokens.toLocaleString()} total tokens</p>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error('Failed to load token efficiency:', e);
+            }
+        }
+    </script>
+</body>
+</html>
