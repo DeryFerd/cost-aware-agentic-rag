@@ -66,6 +66,14 @@
                 <i class="fas fa-chart-bar"></i>
                 <span>Analytics</span>
             </a>
+            <a href="/app/comparison" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-balance-scale"></i>
+                <span>Model Comparison</span>
+            </a>
+            <a href="/app/admin" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-shield-alt"></i>
+                <span>Admin</span>
+            </a>
         </nav>
 
         <!-- System Status -->
@@ -144,6 +152,15 @@
 
         <!-- Input Area -->
         <div class="p-4 border-t border-dark-700">
+            <!-- Suggestions -->
+            <div id="suggestionsArea" class="mb-3 hidden">
+                <div class="flex items-center space-x-2 mb-2">
+                    <i class="fas fa-lightbulb text-yellow-400 text-xs"></i>
+                    <span class="text-xs text-dark-400">Suggestions</span>
+                </div>
+                <div id="suggestionChips" class="flex flex-wrap gap-2"></div>
+            </div>
+
             <form id="queryForm" class="flex items-center space-x-4">
                 <div class="flex-1 relative">
                     <input
@@ -172,6 +189,31 @@
 
         // Load stats on page load
         loadStats();
+        loadSuggestions();
+
+        async function loadSuggestions() {
+            try {
+                const data = await fetch(`${API_BASE}/suggestions?limit=5`).then(r => r.json());
+                if (data.suggestions && data.suggestions.length > 0) {
+                    const area = document.getElementById('suggestionsArea');
+                    const chips = document.getElementById('suggestionChips');
+                    chips.innerHTML = data.suggestions.map(s => `
+                        <button onclick="useSuggestion('${s.query.replace(/'/g, "\\'")}')"
+                            class="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 border border-dark-600 rounded-lg text-xs text-dark-300 hover:text-white transition">
+                            ${s.query}
+                        </button>
+                    `).join('');
+                    area.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error('Failed to load suggestions:', e);
+            }
+        }
+
+        function useSuggestion(query) {
+            queryInput.value = query;
+            queryInput.focus();
+        }
 
         queryForm.addEventListener('submit', async (e) => {
             e.preventDefault();

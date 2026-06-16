@@ -46,6 +46,17 @@ from src.ingestion.upload_handler import (
 from src.ml.feedback import store_feedback, get_feedback_stats, get_recent_feedback
 from src.ml.cost_analytics import CostAnalytics
 from src.ml.export import QueryExporter
+from src.ml.suggestions import QuerySuggestion
+from src.ml.anomaly import AnomalyDetector
+from src.database.admin_auth import (
+    authenticate_user,
+    create_session,
+    validate_session,
+    logout_session,
+    list_users,
+    create_user,
+    delete_user,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -629,6 +640,93 @@ def delete_session(session_id: str):
     if session_id in memory.conversations:
         del memory.conversations[session_id]
     return {"status": "deleted"}
+
+
+# ── Query Suggestion Endpoints ──────────────────────────────────────
+@app.get("/suggestions")
+def get_suggestions(limit: int = 5):
+    """Get query suggestions."""
+    suggestion_engine = QuerySuggestion()
+    return {"suggestions": suggestion_engine.get_suggestions(limit=limit)}
+
+
+@app.get("/suggestions/related")
+def get_related_queries(query: str, limit: int = 3):
+    """Get queries related to the input query."""
+    suggestion_engine = QuerySuggestion()
+    return {"related": suggestion_engine.get_related_queries(query, limit=limit)}
+
+
+# ── Anomaly Detection Endpoints ─────────────────────────────────────
+@app.get("/anomalies")
+def detect_anomalies(window_hours: int = 24):
+    """Detect anomalies in recent data."""
+    detector = AnomalyDetector()
+    return detector.detect_anomalies(window_hours=window_hours)
+
+
+@app.get("/health/metrics")
+def health_metrics():
+    """Get system health metrics."""
+    detector = AnomalyDetector()
+    return detector.get_health_metrics()
+
+
+# ── Admin Auth Endpoints ────────────────────────────────────────────
+@app.post("/admin/login")
+def admin_login(username: str, password: str):
+    """Admin login."""
+    user = authenticate_user(username, password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_session(user["username"])
+    return {"token": token, "user": user}
+
+
+@app.post("/admin/logout")
+def admin_logout(token: str):
+    """Admin logout."""
+    if logout_session(token):
+        return {"status": "logged_out"}
+    raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@app.get("/admin/users")
+def admin_list_users():
+    """List all users (admin only)."""
+    return {"users": list_users()}
+
+
+@app.post("/admin/users")
+def admin_create_user(username: str, password: str, role: str = "user"):
+    """Create a new user (admin only)."""
+    result = create_user(username, password, role)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.delete("/admin/users/{username}")
+def admin_delete_user(username: str):
+    """Delete a user (admin only)."""
+    if delete_user(username):
+        return {"status": "deleted"}
+    raise HTTPException(status_code=404, detail="User not found")
+
+
+@app.get("/admin/validate")
+def admin_validate(token: str):
+    """Validate admin session."""
+    user = validate_session(token)
+    if user:
+        return {"valid": True, "user": user}
+    return {"valid": False}
+
+
+@app.get("/app/admin", response_class=HTMLResponse)
+def admin_page(request: Request) -> HTMLResponse:
+    """Admin dashboard page."""
+    return templates.TemplateResponse(request, "admin.html")
 
 
 def _build_context(results: list, max_chars: int = 2000) -> str:

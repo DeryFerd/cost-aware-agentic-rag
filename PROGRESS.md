@@ -1,8 +1,8 @@
 # Cost-Aware Agentic RAG - Progress
 
-## Current Status: Phase 22 In Progress 🔄
+## Current Status: Phase 25 Complete ✅
 
-**Last Updated**: June 15, 2026
+**Last Updated**: June 16, 2026
 
 ---
 
@@ -137,6 +137,17 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 - **Conversation API** — GET /conversation/context, POST /conversation/session, GET /conversation/sessions, DELETE /conversation/session/{id}
 - **Frontend export buttons** — CSV and Analytics PDF export in dashboard header
 
+### ✅ Phase 25: Admin Panel + Query Suggestions + Anomaly Detection
+- **Admin auth** — File-based JWT auth (no DB dependency), login/logout/session management
+- **Admin API** — POST /admin/login, /admin/logout, GET /admin/users, POST /admin/users, DELETE /admin/users/{id}, GET /admin/validate
+- **Admin dashboard** — Health status, anomaly list, user management, query suggestions
+- **Query suggestions** — Based on historical patterns and document content
+- **Suggestions API** — GET /suggestions, GET /suggestions/related
+- **Anomaly detection** — Cost spikes, latency spikes, rapid queries, routing imbalances
+- **Health metrics** — System status, avg cost, avg latency, error rate
+- **Anomaly API** — GET /anomalies, GET /health/metrics
+- **Frontend** — Query suggestions in dashboard, Admin link in all sidebars
+
 ---
 
 ## API Endpoints
@@ -169,6 +180,16 @@ GET  /conversation/context - Get conversation context
 POST /conversation/session - Create/switch session
 GET  /conversation/sessions - List all sessions
 DELETE /conversation/session/{id} - Delete session
+GET  /suggestions         - Get query suggestions
+GET  /suggestions/related - Get related queries
+GET  /anomalies           - Detect anomalies
+GET  /health/metrics      - System health metrics
+POST /admin/login         - Admin login
+POST /admin/logout        - Admin logout
+GET  /admin/users         - List users
+POST /admin/users         - Create user
+DELETE /admin/users/{id}  - Delete user
+GET  /admin/validate      - Validate session
 ```
 
 ---
@@ -176,10 +197,11 @@ DELETE /conversation/session/{id} - Delete session
 ## Frontend Pages
 
 ```
-/ (Dashboard)            - Chat with streaming + feedback buttons
+/ (Dashboard)            - Chat with streaming + feedback + suggestions
 /upload                  - Upload PDF documents
 /analytics               - Charts and metrics (real API)
-/comparison              - Model comparison dashboard (NEW)
+/comparison              - Model comparison dashboard
+/admin                   - Admin panel (auth, users, health, anomalies)
 /documents               - SEC filing browser (real API)
 ```
 
@@ -250,9 +272,10 @@ cost-aware-agentic-rag/
 │       ├── analytics/page.tsx    # Analytics (real API)
 │       └── documents/page.tsx    # Documents (real API)
 ├── web/templates/                    # HTML templates (Jinja2)
-│   ├── app.html                      # Dashboard (chat + feedback buttons)
+│   ├── app.html                      # Dashboard (chat + feedback + suggestions)
 │   ├── upload.html                   # Document upload page
-│   ├── comparison.html               # NEW: Model comparison dashboard
+│   ├── comparison.html               # Model comparison dashboard
+│   ├── admin.html                    # NEW: Admin panel
 │   ├── documents.html                # Document browser
 │   └── analytics.html                # Analytics dashboard
 ├── src/
