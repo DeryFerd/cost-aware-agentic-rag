@@ -1,6 +1,6 @@
 # Cost-Aware Agentic RAG - Progress
 
-## Current Status: Phase 21 Complete ✅
+## Current Status: Phase 22 In Progress 🔄
 
 **Last Updated**: June 15, 2026
 
@@ -112,6 +112,15 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 - **LLM-as-Judge evaluation** — minimax-m3:cloud via Ollama Cloud
 - **Evaluation Results**: Overall 0.85 (F=0.60, R=0.92, P=0.97, Rc=1.00)
 
+### 🔄 Phase 22: Document Upload + Feedback Loop
+- **Upload handler** — PDF upload, parse (Docling), chunk, embed, store
+- **Upload API** — POST /upload, GET /upload/status/{doc_id}, DELETE /upload/{doc_id}, GET /uploads
+- **Feedback system** — Store thumbs up/down, aggregate stats
+- **Feedback API** — POST /feedback, GET /feedback/stats, GET /feedback/recent
+- **Upload UI** — Drag-and-drop PDF upload with progress tracking
+- **Feedback buttons** — Thumbs up/down on every AI response
+- **Sidebar updated** — Upload link added to all pages
+
 ---
 
 ## API Endpoints
@@ -125,6 +134,13 @@ GET  /cost/summary       - Cost analytics
 GET  /cost/budget        - Budget check
 GET  /conversation/history - Chat history
 POST /conversation/clear - Clear memory
+POST /upload             - Upload PDF for indexing
+GET  /upload/status/{id} - Check upload status
+GET  /uploads            - List all uploads
+DELETE /upload/{id}      - Delete uploaded document
+POST /feedback           - Submit query feedback
+GET  /feedback/stats     - Feedback statistics
+GET  /feedback/recent    - Recent feedback entries
 ```
 
 ---
@@ -132,7 +148,8 @@ POST /conversation/clear - Clear memory
 ## Frontend Pages
 
 ```
-/ (Dashboard)            - Chat with streaming
+/ (Dashboard)            - Chat with streaming + feedback buttons
+/upload                  - Upload PDF documents
 /analytics               - Charts and metrics (real API)
 /documents               - SEC filing browser (real API)
 ```
@@ -203,23 +220,36 @@ cost-aware-agentic-rag/
 │       ├── page.tsx              # Dashboard
 │       ├── analytics/page.tsx    # Analytics (real API)
 │       └── documents/page.tsx    # Documents (real API)
+├── web/templates/                    # HTML templates (Jinja2)
+│   ├── app.html                      # Dashboard (chat + feedback buttons)
+│   ├── upload.html                   # Document upload page
+│   ├── documents.html                # Document browser
+│   └── analytics.html                # Analytics dashboard
 ├── src/
 │   ├── agents/
-│   │   ├── graph.py              # LangGraph state graph (planner→tools→generator→reflector)
-│   │   ├── memory.py             # Conversation memory
-│   │   └── guardrails.py         # Input/output guardrails (regex + SpaCy NER)
+│   │   ├── graph.py                  # LangGraph state graph (planner→tools→generator→reflector)
+│   │   ├── memory.py                 # Conversation memory
+│   │   └── guardrails.py             # Input/output guardrails (regex + SpaCy NER)
 │   ├── retrieval/
-│   │   ├── vector_store.py       # ChromaDB (bge-small-en-v1.5)
-│   │   ├── bm25_index.py         # BM25 sparse
-│   │   └── hybrid.py             # Hybrid fusion
+│   │   ├── vector_store.py           # ChromaDB (bge-small-en-v1.5)
+│   │   ├── bm25_index.py             # BM25 sparse
+│   │   └── hybrid.py                 # Hybrid fusion
 │   ├── generation/
-│   │   ├── llm_client.py         # Ollama Cloud (MODEL_COSTS: 0.05/0.10, 0.25/0.50)
-│   │   └── cost_tracker.py       # Cost tracking
+│   │   ├── llm_client.py             # Ollama Cloud (MODEL_COSTS: 0.05/0.10, 0.25/0.50)
+│   │   └── cost_tracker.py           # Cost tracking
 │   ├── multimodal/
-│   │   ├── tables.py             # Table extraction
-│   │   ├── vision.py             # VisionAnalyzer
-│   │   └── images.py             # PDF image extraction
-│   ├── database/
+│   │   ├── tables.py                 # Table extraction
+│   │   ├── vision.py                 # VisionAnalyzer
+│   │   └── images.py                 # PDF image extraction
+│   ├── ingestion/
+│   │   ├── upload_handler.py         # NEW: PDF upload, parse, chunk, embed, store
+│   │   ├── parser.py                 # Docling document parser
+│   │   ├── downloader.py             # EDGAR XBRL API
+│   │   └── pipeline.py              # Ingestion pipeline
+│   ├── ml/
+│   │   ├── feedback.py               # NEW: Feedback storage and aggregation
+│   │   ├── evaluation.py             # ML evaluation
+│   │   └── routing.py                # CostAwareRouter (trained classifier)
 │   │   ├── models.py             # SQLAlchemy models (deprecated notice)
 │   │   ├── auth.py               # JWT auth (deprecated notice)
 │   │   └── cache.py              # Redis caching

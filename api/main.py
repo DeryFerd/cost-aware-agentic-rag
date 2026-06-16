@@ -17,11 +17,17 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+from fastapi import UploadFile, File, Form, BackgroundTasks
+
 from api.models import (
     QueryRequest,
     QueryResponse,
     CostSummary,
     HealthResponse,
+    UploadResponse,
+    UploadStatus,
+    FeedbackRequest,
+    FeedbackStats,
 )
 from src.agents.graph import LangGraphOrchestrator
 from src.generation.cost_tracker import CostTracker, QueryCostRecord
@@ -29,6 +35,15 @@ from src.agents.memory import memory
 from src.agents.guardrails import guardrails
 from src.config import settings
 from src.database.cache import cache
+from src.ingestion.upload_handler import (
+    validate_upload,
+    save_upload,
+    process_upload,
+    get_upload_status,
+    list_uploads,
+    delete_upload,
+)
+from src.ml.feedback import store_feedback, get_feedback_stats, get_recent_feedback
 
 logger = logging.getLogger(__name__)
 
@@ -339,6 +354,109 @@ Rules:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ── Upload Endpoints ────────────────────────────────────────────────
+@app.get("/app/upload", response_class=HTMLResponse)
+def upload_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "upload.html")
+
+
+@app.post("/upload", response_model=UploadResponse)
+async def upload_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    ticker: str = Form(...),
+    year: str = Form(...),
+):
+    """Upload a PDF document for indexing."""
+    # Read file
+    content = await file.read()
+    file_size = len(content)
+
+    # Validate
+    valid, msg = validate_upload(file.filename or "unknown.pdf", file_size)
+    if not valid:
+        raise HTTPException(status_code=400, detail=msg)
+
+    # Save and process
+    doc_id = save_upload(content, file.filename or "document.pdf", ticker, year)
+
+    # Process in background
+    background_tasks.add_task(process_upload, doc_id)
+
+    return UploadResponse(
+        doc_id=doc_id,
+        status="processing",
+        filename=file.filename or "document.pdf",
+        ticker=ticker.upper(),
+        year=year,
+    )
+
+
+@app.get("/upload/status/{doc_id}", response_model=UploadStatus)
+def upload_status(doc_id: str) -> UploadStatus:
+    """Check upload processing status."""
+    status = get_upload_status(doc_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return UploadStatus(
+        doc_id=status["doc_id"],
+        filename=status["filename"],
+        status=status["status"],
+        chunk_count=status["chunk_count"],
+        error=status.get("error"),
+    )
+
+
+@app.get("/uploads", response_model=list[UploadStatus])
+def list_all_uploads() -> list[UploadStatus]:
+    """List all uploaded documents."""
+    uploads = list_uploads()
+    return [
+        UploadStatus(
+            doc_id=u["doc_id"],
+            filename=u["filename"],
+            status=u["status"],
+            chunk_count=u["chunk_count"],
+            error=u.get("error"),
+        )
+        for u in uploads
+    ]
+
+
+@app.delete("/upload/{doc_id}")
+def delete_uploaded(doc_id: str):
+    """Delete uploaded document."""
+    if not delete_upload(doc_id):
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"status": "deleted"}
+
+
+# ── Feedback Endpoints ──────────────────────────────────────────────
+@app.post("/feedback")
+def feedback(req: FeedbackRequest):
+    """Submit feedback for a query response."""
+    entry = store_feedback(
+        query=req.query,
+        answer=req.answer,
+        rating=req.rating,
+        comment=req.comment,
+    )
+    return {"status": "stored", "id": entry["id"]}
+
+
+@app.get("/feedback/stats", response_model=FeedbackStats)
+def feedback_stats() -> FeedbackStats:
+    """Get aggregated feedback statistics."""
+    stats = get_feedback_stats()
+    return FeedbackStats(**stats)
+
+
+@app.get("/feedback/recent")
+def feedback_recent(limit: int = 20):
+    """Get recent feedback entries."""
+    return {"feedback": get_recent_feedback(limit)}
 
 
 def _build_context(results: list, max_chars: int = 2000) -> str:

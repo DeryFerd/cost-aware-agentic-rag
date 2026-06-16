@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Documents - FinRAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .drop-zone { transition: all 0.3s ease; }
+        .drop-zone.drag-over { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); transform: scale(1.02); }
+        .upload-item { animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .progress-bar { transition: width 0.3s ease; }
+    </style>
+</head>
+<body class="bg-dark-950 text-white min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 glass border-r border-dark-700 flex flex-col">
+        <div class="p-4 border-b border-dark-700">
+            <a href="/" class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <span class="text-xl font-bold gradient-text">FinRAG</span>
+            </a>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="/app" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-comments"></i>
+                <span>Query</span>
+            </a>
+            <a href="/app/upload" class="flex items-center space-x-3 px-4 py-3 bg-primary-600/20 text-primary-400 rounded-xl">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>Upload</span>
+            </a>
+            <a href="/app/documents" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-file-alt"></i>
+                <span>Documents</span>
+            </a>
+            <a href="/app/analytics" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-chart-bar"></i>
+                <span>Analytics</span>
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-dark-700">
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span class="text-sm font-medium">System Status</span>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">API</span>
+                        <span id="apiStatus" class="text-green-400">Connected</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">Documents</span>
+                        <span id="docCount" class="text-white">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">Total Chunks</span>
+                        <span id="chunkCount" class="text-white">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <!-- Header -->
+        <header class="glass border-b border-dark-700 p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold">Upload Documents</h1>
+                    <p class="text-dark-400 text-sm">Upload PDF financial documents for indexing</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 px-4 py-2 glass rounded-xl">
+                        <i class="fas fa-info-circle text-primary-400"></i>
+                        <span class="text-sm">Max 100MB per file</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <!-- Upload Form -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-lg font-semibold mb-4">New Document</h2>
+
+                <form id="uploadForm" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-dark-300 mb-2">Company Ticker</label>
+                            <input type="text" id="ticker" placeholder="e.g. AAPL" maxlength="10"
+                                class="w-full px-4 py-3 bg-dark-800 border border-dark-600 rounded-xl focus:outline-none focus:border-primary-500 transition text-white placeholder-dark-400 uppercase"
+                                required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-dark-300 mb-2">Filing Year</label>
+                            <input type="text" id="year" placeholder="e.g. 2024" pattern="\d{4}" maxlength="4"
+                                class="w-full px-4 py-3 bg-dark-800 border border-dark-600 rounded-xl focus:outline-none focus:border-primary-500 transition text-white placeholder-dark-400"
+                                required>
+                        </div>
+                    </div>
+
+                    <!-- Drop Zone -->
+                    <div id="dropZone" class="drop-zone border-2 border-dashed border-dark-600 rounded-xl p-8 text-center cursor-pointer hover:border-primary-500 transition">
+                        <input type="file" id="fileInput" accept=".pdf" class="hidden" required>
+                        <i class="fas fa-cloud-upload-alt text-4xl text-dark-400 mb-4"></i>
+                        <p class="text-dark-300 mb-2">Drag and drop your PDF here, or click to browse</p>
+                        <p class="text-dark-500 text-sm">Supports SEC 10-K filings and other PDF financial documents</p>
+                        <div id="fileInfo" class="mt-4 hidden">
+                            <p class="text-primary-400 font-medium" id="fileName"></p>
+                            <p class="text-dark-400 text-sm" id="fileSize"></p>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="uploadBtn" disabled
+                        class="w-full py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-dark-700 disabled:text-dark-500 rounded-xl font-medium transition flex items-center justify-center space-x-2">
+                        <i class="fas fa-upload"></i>
+                        <span>Upload & Index</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Upload Queue -->
+            <div id="uploadQueue" class="glass rounded-2xl p-6 hidden">
+                <h2 class="text-lg font-semibold mb-4">Upload Queue</h2>
+                <div id="uploadList" class="space-y-3"></div>
+            </div>
+
+            <!-- Recent Uploads -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-lg font-semibold mb-4">Recent Uploads</h2>
+                <div id="recentUploads" class="space-y-3">
+                    <p class="text-dark-400 text-sm">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadQueue = document.getElementById('uploadQueue');
+        const uploadList = document.getElementById('uploadList');
+
+        // Load stats
+        loadStats();
+        loadRecentUploads();
+
+        // Drop zone events
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileInfo(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                updateFileInfo(e.target.files[0]);
+            }
+        });
+
+        function updateFileInfo(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatSize(file.size);
+            document.getElementById('fileInfo').classList.remove('hidden');
+            uploadBtn.disabled = false;
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+            const year = document.getElementById('year').value.trim();
+            const file = fileInput.files[0];
+            if (!ticker || !year || !file) return;
+
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Uploading...</span>';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('ticker', ticker);
+            formData.append('year', year);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Upload failed');
+                }
+
+                const result = await response.json();
+                addUploadItem(result);
+                uploadQueue.classList.remove('hidden');
+
+                // Reset form
+                uploadForm.reset();
+                document.getElementById('fileInfo').classList.add('hidden');
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i><span>Upload & Index</span>';
+
+                // Start polling status
+                pollUploadStatus(result.doc_id);
+                loadStats();
+            } catch (error) {
+                alert(error.message);
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i><span>Upload & Index</span>';
+            }
+        });
+
+        function addUploadItem(result) {
+            const div = document.createElement('div');
+            div.id = `upload-${result.doc_id}`;
+            div.className = 'upload-item bg-dark-800 rounded-xl p-4';
+            div.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-primary-600/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-file-pdf text-primary-400"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium">${escapeHtml(result.filename)}</p>
+                            <p class="text-dark-400 text-sm">${result.ticker} • ${result.year}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <span class="status-badge px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">Processing</span>
+                    </div>
+                </div>
+                <div class="progress-bar-container w-full bg-dark-700 rounded-full h-1.5 mt-2">
+                    <div class="progress-bar bg-primary-500 h-1.5 rounded-full" style="width: 0%"></div>
+                </div>
+            `;
+            uploadList.appendChild(div);
+        }
+
+        async function pollUploadStatus(docId) {
+            const checkStatus = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/upload/status/${docId}`);
+                    const status = await response.json();
+
+                    const item = document.getElementById(`upload-${docId}`);
+                    if (!item) return;
+
+                    const badge = item.querySelector('.status-badge');
+                    const progressBar = item.querySelector('.progress-bar');
+
+                    if (status.status === 'indexed') {
+                        badge.textContent = `${status.chunk_count} chunks`;
+                        badge.className = 'status-badge px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs';
+                        progressBar.style.width = '100%';
+                        progressBar.className = 'progress-bar bg-green-500 h-1.5 rounded-full';
+                        loadRecentUploads();
+                        loadStats();
+                        return;
+                    } else if (status.status === 'error') {
+                        badge.textContent = 'Error';
+                        badge.className = 'status-badge px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs';
+                        progressBar.style.width = '100%';
+                        progressBar.className = 'progress-bar bg-red-500 h-1.5 rounded-full';
+                        return;
+                    }
+
+                    // Continue polling
+                    progressBar.style.width = '50%';
+                    setTimeout(checkStatus, 2000);
+                } catch {
+                    setTimeout(checkStatus, 3000);
+                }
+            };
+            checkStatus();
+        }
+
+        async function loadRecentUploads() {
+            const container = document.getElementById('recentUploads');
+            try {
+                const response = await fetch(`${API_BASE}/uploads`);
+                const uploads = await response.json();
+
+                if (!uploads.length) {
+                    container.innerHTML = '<p class="text-dark-400 text-sm">No uploads yet</p>';
+                    return;
+                }
+
+                container.innerHTML = uploads.map(u => `
+                    <div class="flex items-center justify-between bg-dark-800 rounded-xl p-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-dark-700 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-file-pdf text-dark-400 text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium">${escapeHtml(u.filename)}</p>
+                                <p class="text-dark-400 text-xs">${u.status === 'indexed' ? u.chunk_count + ' chunks' : u.status}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs ${u.status === 'indexed' ? 'text-green-400' : u.status === 'error' ? 'text-red-400' : 'text-yellow-400'}">${u.status}</span>
+                    </div>
+                `).join('');
+            } catch {
+                container.innerHTML = '<p class="text-dark-400 text-sm">Failed to load uploads</p>';
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const health = await fetch(`${API_BASE}/health`).then(r => r.json());
+                document.getElementById('docCount').textContent = health.document_count || 0;
+                document.getElementById('chunkCount').textContent = health.chunk_count || 0;
+            } catch {
+                document.getElementById('docCount').textContent = '-';
+                document.getElementById('chunkCount').textContent = '-';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

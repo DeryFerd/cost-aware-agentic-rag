@@ -54,6 +54,10 @@
                 <i class="fas fa-comments"></i>
                 <span>Query</span>
             </a>
+            <a href="/app/upload" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>Upload</span>
+            </a>
             <a href="/app/documents" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
                 <i class="fas fa-file-alt"></i>
                 <span>Documents</span>
@@ -166,6 +170,10 @@
             const query = queryInput.value.trim();
             if (!query) return;
 
+            // Store for feedback
+            lastQuery = query;
+            lastAnswer = '';
+
             // Add user message
             addMessage(query, 'user');
             queryInput.value = '';
@@ -237,6 +245,7 @@
                 }
 
                 // Add metadata footer if available
+                lastAnswer = fullText;
                 if (metadata) {
                     const complexityColor = metadata.complexity === 'complex' ? 'text-purple-400' : 'text-green-400';
                     const citations = metadata.citations?.slice(0, 3) || [];
@@ -255,6 +264,16 @@
                                 ${citations.map(c => `<p class="text-dark-400 text-xs">📄 ${c}</p>`).join('')}
                             </div>
                         ` : ''}
+                        <div class="flex items-center space-x-2 mt-3 pt-3 border-t border-dark-600">
+                            <button onclick="submitFeedback(this, 1)"
+                                class="feedback-btn px-3 py-1 bg-dark-700 hover:bg-green-600/20 hover:text-green-400 rounded-lg text-xs transition">
+                                <i class="fas fa-thumbs-up"></i> Helpful
+                            </button>
+                            <button onclick="submitFeedback(this, -1)"
+                                class="feedback-btn px-3 py-1 bg-dark-700 hover:bg-red-600/20 hover:text-red-400 rounded-lg text-xs transition">
+                                <i class="fas fa-thumbs-down"></i> Not helpful
+                            </button>
+                        </div>
                     `;
                 }
 
@@ -315,6 +334,16 @@
                             ${citations.map(c => `<p class="text-dark-400 text-xs">📄 ${c}</p>`).join('')}
                         </div>
                     ` : ''}
+                    <div class="flex items-center space-x-2 mt-3 pt-3 border-t border-dark-600">
+                        <button onclick="submitFeedback(this, 1)"
+                            class="feedback-btn px-3 py-1 bg-dark-700 hover:bg-green-600/20 hover:text-green-400 rounded-lg text-xs transition">
+                            <i class="fas fa-thumbs-up"></i> Helpful
+                        </button>
+                        <button onclick="submitFeedback(this, -1)"
+                            class="feedback-btn px-3 py-1 bg-dark-700 hover:bg-red-600/20 hover:text-red-400 rounded-lg text-xs transition">
+                            <i class="fas fa-thumbs-down"></i> Not helpful
+                        </button>
+                    </div>
                 </div>
             `;
 
@@ -387,6 +416,35 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Store last query/answer for feedback
+        let lastQuery = '';
+        let lastAnswer = '';
+
+        async function submitFeedback(btn, rating) {
+            try {
+                await fetch(`${API_BASE}/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: lastQuery, answer: lastAnswer.slice(0, 500), rating })
+                });
+                // Update button states
+                const container = btn.parentElement;
+                container.querySelectorAll('.feedback-btn').forEach(b => {
+                    b.classList.remove('bg-green-600/20', 'text-green-400', 'bg-red-600/20', 'text-red-400');
+                    b.classList.add('bg-dark-700');
+                });
+                if (rating > 0) {
+                    btn.classList.remove('bg-dark-700');
+                    btn.classList.add('bg-green-600/20', 'text-green-400');
+                } else {
+                    btn.classList.remove('bg-dark-700');
+                    btn.classList.add('bg-red-600/20', 'text-red-400');
+                }
+            } catch (e) {
+                console.error('Feedback failed:', e);
+            }
         }
     </script>
 </body>
