@@ -111,6 +111,14 @@
                         <i class="fas fa-clock text-primary-400"></i>
                         <span class="text-sm">Avg: <span id="avgLatency">0</span>ms</span>
                     </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="exportCSV()" class="px-3 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-sm transition" title="Export CSV">
+                            <i class="fas fa-file-csv text-green-400"></i>
+                        </button>
+                        <button onclick="exportAnalytics()" class="px-3 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg text-sm transition" title="Export Analytics PDF">
+                            <i class="fas fa-file-pdf text-red-400"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -445,6 +453,46 @@
             } catch (e) {
                 console.error('Feedback failed:', e);
             }
+        }
+
+        async function exportCSV() {
+            try {
+                const response = await fetch(`${API_BASE}/export/queries/csv`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'queries.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('CSV export failed:', e);
+                alert('Failed to export CSV');
+            }
+        }
+
+        async function exportAnalytics() {
+            try {
+                const response = await fetch(`${API_BASE}/export/analytics`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'analytics.pdf';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('Analytics export failed:', e);
+                alert('Failed to export analytics');
+            }
+        }
+
+        function exportQueryPDF(query, answer, model, cost, latency) {
+            const params = new URLSearchParams({
+                query, answer, model_used: model,
+                cost_usd: cost, latency_ms: latency
+            });
+            window.open(`${API_BASE}/export/query?${params}`, '_blank');
         }
     </script>
 </body>

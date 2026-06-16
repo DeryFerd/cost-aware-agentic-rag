@@ -45,6 +45,7 @@ from src.ingestion.upload_handler import (
 )
 from src.ml.feedback import store_feedback, get_feedback_stats, get_recent_feedback
 from src.ml.cost_analytics import CostAnalytics
+from src.ml.export import QueryExporter
 
 logger = logging.getLogger(__name__)
 
@@ -314,14 +315,32 @@ Rules:
             results = retriever.retrieve(req.query.strip(), top_k=5)
             context = _build_context(results, max_chars=2000)
 
-            # Build messages
+            # Get conversation history for multi-turn context
+            history = memory.get_history(limit=10)
+            history_text = ""
+            if history:
+                history_parts = []
+                for msg in history:
+                    prefix = "User" if msg["role"] == "user" else "Assistant"
+                    history_parts.append(f"{prefix}: {msg['content'][:200]}")
+                history_text = "\n".join(history_parts)
+
+            # Build messages with multi-turn context
             messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": f"Document Context:\n{context}\n\n---\n\nQuestion: {req.query.strip()}\n\nProvide a direct answer based on the context above:",
-                },
             ]
+
+            # Add conversation history if available
+            if history_text:
+                messages.append({
+                    "role": "user",
+                    "content": f"Previous conversation:\n{history_text}\n\n---",
+                })
+
+            messages.append({
+                "role": "user",
+                "content": f"Document Context:\n{context}\n\n---\n\nQuestion: {req.query.strip()}\n\nProvide a direct answer based on the context above:",
+            })
 
             # Stream response
             for chunk in llm.chat_stream(model=model, messages=messages):
@@ -348,6 +367,10 @@ Rules:
                 "steps_count": 3,
             }
             yield f"data: {json.dumps(metadata)}\n\n"
+
+            # Store in conversation memory for multi-turn context
+            memory.add_message("user", req.query.strip())
+            memory.add_message("assistant", full_text if 'full_text' in dir() else "")
             yield "data: [DONE]\n\n"
 
         except Exception as e:
@@ -493,6 +516,119 @@ def cost_per_token():
 def comparison_page(request: Request) -> HTMLResponse:
     """Model comparison dashboard page."""
     return templates.TemplateResponse(request, "comparison.html")
+
+
+# ── Export Endpoints ────────────────────────────────────────────────
+@app.get("/export/query")
+def export_query(
+    query: str,
+    answer: str,
+    model_used: str = "unknown",
+    cost_usd: float = 0.0,
+    latency_ms: float = 0.0,
+    steps_count: int = 0,
+):
+    """Export a single query result to PDF."""
+    exporter = QueryExporter()
+    filepath = exporter.export_query_pdf(
+        query=query,
+        answer=answer,
+        citations=[],  # Could be passed as param
+        model_used=model_used,
+        cost_usd=cost_usd,
+        latency_ms=latency_ms,
+        steps_count=steps_count,
+    )
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(filepath),
+        filename=filepath.name,
+        media_type="application/pdf",
+    )
+
+
+@app.get("/export/analytics")
+def export_analytics():
+    """Export analytics summary to PDF."""
+    analytics = CostAnalytics()
+    data = {
+        "models": analytics.model_comparison().get("models", []),
+        "routing_efficiency": analytics.routing_breakdown().get("routing_efficiency", {}),
+    }
+    exporter = QueryExporter()
+    filepath = exporter.export_analytics_pdf(data)
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(filepath),
+        filename=filepath.name,
+        media_type="application/pdf",
+    )
+
+
+@app.get("/export/queries/csv")
+def export_queries_csv():
+    """Export query history to CSV."""
+    from src.generation.cost_tracker import CostTracker
+    tracker = CostTracker()
+    history = tracker.load_history()
+
+    queries = []
+    for r in history:
+        queries.append({
+            "query": r.query,
+            "answer": "",  # Not stored in cost tracker
+            "model_used": r.model,
+            "complexity": r.complexity,
+            "cost_usd": r.cost_usd,
+            "latency_ms": r.latency_ms,
+            "citations": [],
+            "timestamp": r.timestamp,
+        })
+
+    exporter = QueryExporter()
+    filepath = exporter.export_queries_csv(queries)
+    from fastapi.responses import FileResponse
+    return FileResponse(
+        path=str(filepath),
+        filename=filepath.name,
+        media_type="text/csv",
+    )
+
+
+@app.get("/export/list")
+def list_exports():
+    """List all exported files."""
+    exporter = QueryExporter()
+    return {"exports": exporter.list_exports()}
+
+
+# ── Multi-turn Conversation Endpoints ───────────────────────────────
+@app.get("/conversation/context")
+def conversation_context():
+    """Get conversation context string for LLM."""
+    context = memory.get_context_string()
+    return {"context": context, "history": memory.get_history(limit=10)}
+
+
+@app.post("/conversation/session")
+def create_session(session_id: str):
+    """Create or switch to a conversation session."""
+    memory.current_session = session_id
+    return {"status": "ok", "session_id": session_id}
+
+
+@app.get("/conversation/sessions")
+def list_sessions():
+    """List all conversation sessions."""
+    return {"sessions": memory.get_session_ids()}
+
+
+@app.delete("/conversation/session/{session_id}")
+def delete_session(session_id: str):
+    """Delete a conversation session."""
+    if session_id in memory.conversations:
+        del memory.conversations[session_id]
+    return {"status": "deleted"}
 
 
 def _build_context(results: list, max_chars: int = 2000) -> str:

@@ -129,6 +129,14 @@ caa3f98 feat: expand data to 7 companies, 2075 chunks
 - **Cost trend chart** — Daily cost visualization with configurable period
 - **Token efficiency** — Cost per 1K tokens by model
 
+### 🔄 Phase 24: Export + Multi-turn Conversations
+- **Export module** — PDF export (query report, analytics), CSV export (query history)
+- **Export API** — GET /export/query, /export/analytics, /export/queries/csv, /export/list
+- **Multi-turn context** — Conversation history included in LLM prompts (last 10 messages)
+- **Session management** — Create/switch/delete conversation sessions
+- **Conversation API** — GET /conversation/context, POST /conversation/session, GET /conversation/sessions, DELETE /conversation/session/{id}
+- **Frontend export buttons** — CSV and Analytics PDF export in dashboard header
+
 ---
 
 ## API Endpoints
@@ -153,6 +161,14 @@ GET  /analytics/models   - Model comparison metrics
 GET  /analytics/routing  - Routing breakdown and efficiency
 GET  /analytics/trend    - Cost trend over time
 GET  /analytics/tokens   - Cost per token analysis
+GET  /export/query       - Export query to PDF
+GET  /export/analytics   - Export analytics to PDF
+GET  /export/queries/csv - Export queries to CSV
+GET  /export/list        - List exported files
+GET  /conversation/context - Get conversation context
+POST /conversation/session - Create/switch session
+GET  /conversation/sessions - List all sessions
+DELETE /conversation/session/{id} - Delete session
 ```
 
 ---
@@ -263,6 +279,7 @@ cost-aware-agentic-rag/
 │   ├── ml/
 │   │   ├── feedback.py               # NEW: Feedback storage and aggregation
 │   │   ├── cost_analytics.py          # NEW: Model comparison and cost optimization
+│   │   ├── export.py                  # NEW: PDF/CSV export
 │   │   ├── evaluation.py             # ML evaluation
 │   │   └── routing.py                # CostAwareRouter (trained classifier)
 │   │   ├── models.py             # SQLAlchemy models (deprecated notice)
