@@ -48,6 +48,9 @@ from src.ml.cost_analytics import CostAnalytics
 from src.ml.export import QueryExporter
 from src.ml.suggestions import QuerySuggestion
 from src.ml.anomaly import AnomalyDetector
+from src.ml.query_processor import QueryProcessor
+from src.knowledge.graph import FinancialKnowledgeGraph
+from src.eval.pipeline import EvalPipeline, CIGating
 from src.database.admin_auth import (
     authenticate_user,
     create_session,
@@ -316,15 +319,37 @@ Rules:
             llm = OllamaClient()
             retriever = HybridRetriever()
 
+            # Process query (rewriting + HyDE + multi-query)
+            processor = QueryProcessor(llm_client=llm)
+            processed = processor.process(
+                req.query.strip(),
+                enable_rewrite=True,
+                enable_hyde=True,
+                enable_multi_query=True,
+            )
+            all_queries = processor.get_all_queries(processed)
+
             # Use trained classifier for routing
             router = CostAwareRouter()
-            routing_result = router.route(req.query.strip())
+            routing_result = router.route(processed.rewritten)
             complexity = routing_result.complexity
             model = routing_result.model
 
-            # Retrieve context
-            results = retriever.retrieve(req.query.strip(), top_k=5)
-            context = _build_context(results, max_chars=2000)
+            # Retrieve context using all query variations
+            all_results = []
+            for q in all_queries:
+                results = retriever.retrieve(q, top_k=5)
+                all_results.extend(results)
+
+            # Deduplicate by text (keep highest score)
+            seen_texts = {}
+            for r in all_results:
+                key = r.text[:200]
+                if key not in seen_texts or r.score > seen_texts[key].score:
+                    seen_texts[key] = r
+            unique_results = sorted(seen_texts.values(), key=lambda x: x.score, reverse=True)[:5]
+
+            context = _build_context(unique_results, max_chars=2000)
 
             # Get conversation history for multi-turn context
             history = memory.get_history(limit=10)
@@ -350,17 +375,19 @@ Rules:
 
             messages.append({
                 "role": "user",
-                "content": f"Document Context:\n{context}\n\n---\n\nQuestion: {req.query.strip()}\n\nProvide a direct answer based on the context above:",
+                "content": f"Document Context:\n{context}\n\n---\n\nQuestion: {processed.rewritten}\n\nProvide a direct answer based on the context above:",
             })
 
             # Stream response
+            full_text = ""
             for chunk in llm.chat_stream(model=model, messages=messages):
+                full_text += chunk
                 yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
 
             # Send metadata at the end
             citations = []
             seen = set()
-            for r in results:
+            for r in unique_results:
                 if r.metadata:
                     ticker = r.metadata.get("ticker", "")
                     year = r.metadata.get("year", "")
@@ -376,12 +403,18 @@ Rules:
                 "citations": citations,
                 "cost_usd": routing_result.cost_estimate,
                 "steps_count": 3,
+                "query_processed": {
+                    "original": processed.original,
+                    "rewritten": processed.rewritten,
+                    "hyde_used": processed.hyde_query is not None,
+                    "expanded_count": len(processed.expanded_queries) if processed.expanded_queries else 0,
+                },
             }
             yield f"data: {json.dumps(metadata)}\n\n"
 
             # Store in conversation memory for multi-turn context
             memory.add_message("user", req.query.strip())
-            memory.add_message("assistant", full_text if 'full_text' in dir() else "")
+            memory.add_message("assistant", full_text)
             yield "data: [DONE]\n\n"
 
         except Exception as e:
@@ -727,6 +760,97 @@ def admin_validate(token: str):
 def admin_page(request: Request) -> HTMLResponse:
     """Admin dashboard page."""
     return templates.TemplateResponse(request, "admin.html")
+
+
+# ── Knowledge Graph Endpoints ────────────────────────────────────────
+@app.get("/knowledge/stats")
+def knowledge_graph_stats():
+    """Get knowledge graph statistics."""
+    kg = FinancialKnowledgeGraph(
+        storage_path=settings.data_dir / "knowledge_graph.json"
+    )
+    try:
+        kg.load()
+    except Exception:
+        pass
+    return kg.get_stats()
+
+
+@app.get("/knowledge/entity/{entity}")
+def knowledge_entity(entity: str):
+    """Query knowledge graph for an entity."""
+    kg = FinancialKnowledgeGraph(
+        storage_path=settings.data_dir / "knowledge_graph.json"
+    )
+    try:
+        kg.load()
+    except Exception:
+        pass
+    return kg.query_entity(entity)
+
+
+@app.post("/knowledge/extract")
+def knowledge_extract(text: str):
+    """Extract entities and triples from text."""
+    kg = FinancialKnowledgeGraph()
+    result = kg.build_from_text(text)
+    return result
+
+
+# ── Evaluation Endpoints ─────────────────────────────────────────────
+@app.post("/eval/run")
+def eval_run(
+    query: str,
+    answer: str,
+    ground_truth: str | None = None,
+):
+    """Run evaluation on a query-answer pair."""
+    from src.retrieval.hybrid import HybridRetriever
+
+    retriever = HybridRetriever()
+    docs = retriever.retrieve(query, top_k=5)
+    doc_texts = [d.text for d in docs]
+
+    pipeline = EvalPipeline(
+        storage_path=settings.data_dir / "eval_pipeline"
+    )
+    report = pipeline.evaluate(
+        query=query,
+        retrieved_docs=doc_texts,
+        answer=answer,
+        ground_truth=ground_truth,
+    )
+
+    # Check CI gates
+    gating = CIGating()
+    gate_result = gating.check(report)
+
+    return {
+        "overall_score": report.overall_score,
+        "metrics": [
+            {"metric": r.metric_name, "value": r.value}
+            for r in report.results
+        ],
+        "ci_gates": gate_result,
+    }
+
+
+@app.get("/eval/history")
+def eval_history(limit: int = 20):
+    """Get evaluation history."""
+    from src.eval.pipeline import EvalStorage
+
+    storage = EvalStorage(settings.data_dir / "eval_pipeline")
+    return {"history": storage.get_history(limit=limit)}
+
+
+@app.get("/eval/averages")
+def eval_averages(window: int = 10):
+    """Get average evaluation scores."""
+    from src.eval.pipeline import EvalStorage
+
+    storage = EvalStorage(settings.data_dir / "eval_pipeline")
+    return {"averages": storage.get_average_scores(window=window)}
 
 
 def _build_context(results: list, max_chars: int = 2000) -> str:
