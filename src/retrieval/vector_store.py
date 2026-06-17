@@ -53,7 +53,7 @@ class VectorStore:
         for i, text in enumerate(texts):
             content_hash = hashlib.md5(f"{ticker}_{timestamp}_{i}_{text[:100]}".encode()).hexdigest()[:8]
             ids.append(f"{ticker}_{content_hash}_{i}")
-        
+
         metadatas = [
             {
                 "ticker": c["metadata"].get("ticker", ticker),

@@ -166,6 +166,68 @@ class OutputGuardrails:
         "i recall",
     ]
 
+    # Regex for dollar amounts
+    DOLLAR_AMOUNT_PATTERN = r'\$[\d,.]+\s*(?:billion|million|B|M)?'
+
+    # Regex for nouns (words starting with capital or after common determiners)
+    NOUN_PATTERN = r'\b[A-Za-z]{4,}\b'
+
+    # Common stop words to filter out when computing key nouns
+    STOP_WORDS = frozenset({
+        "the", "and", "for", "that", "this", "with", "from", "are", "was",
+        "were", "been", "have", "has", "had", "not", "but", "will", "can",
+        "may", "its", "their", "they", "them", "than", "also", "which",
+        "would", "could", "should", "about", "into", "each", "more", "other",
+        "very", "such", "when", "what", "there", "based", "using", "used",
+    })
+
+    def _extract_dollar_amounts(self, text: str) -> list[str]:
+        """Extract dollar amounts from text."""
+        return re.findall(self.DOLLAR_AMOUNT_PATTERN, text, re.IGNORECASE)
+
+    def _extract_key_nouns(self, text: str) -> set[str]:
+        """Extract key nouns (words >= 4 chars, not stop words) from text."""
+        words = re.findall(self.NOUN_PATTERN, text.lower())
+        return {w for w in words if w not in self.STOP_WORDS and len(w) >= 4}
+
+    def _check_cross_reference_amounts(self, answer: str, context: str) -> list[str]:
+        """Check if dollar amounts in answer appear in context.
+
+        Flags amounts in the answer that are NOT found in the context,
+        which may indicate hallucinated figures.
+        """
+        issues = []
+        answer_amounts = self._extract_dollar_amounts(answer)
+        context_lower = context.lower()
+
+        for amount in answer_amounts:
+            amount_clean = amount.strip()
+            if amount_clean.lower() not in context_lower:
+                issues.append(f"ungrounded_amount: {amount_clean}")
+
+        return issues
+
+    def _check_semantic_grounding(self, answer: str, context: str) -> list[str]:
+        """Check if answer shares enough key nouns with context.
+
+        Uses simple word overlap. If answer shares < 20% of key nouns
+        with context, flags as low grounding.
+        """
+        issues = []
+        answer_nouns = self._extract_key_nouns(answer)
+        context_nouns = self._extract_key_nouns(context)
+
+        if not answer_nouns:
+            return issues
+
+        overlap = answer_nouns & context_nouns
+        grounding_ratio = len(overlap) / len(answer_nouns) if answer_nouns else 0.0
+
+        if grounding_ratio < 0.20:
+            issues.append(f"low_semantic_grounding: {grounding_ratio:.2f}")
+
+        return issues
+
     def validate(
         self,
         answer: str,
@@ -181,7 +243,7 @@ class OutputGuardrails:
             if keyword in answer_lower:
                 issues.append(f"financial_advice_language: {keyword}")
 
-        # Check if answer is grounded in context
+        # Check if answer is grounded in context (existing word overlap)
         context_lower = context.lower()
         answer_words = set(answer_lower.split())
         context_words = set(context_lower.split())
@@ -202,6 +264,12 @@ class OutputGuardrails:
             relevance = len(query_words & answer_words) / len(query_words)
             if relevance < 0.2:
                 issues.append(f"low_relevance: {relevance:.2f}")
+
+        # Cross-reference: flag ungrounded dollar amounts
+        issues.extend(self._check_cross_reference_amounts(answer, context))
+
+        # Semantic grounding: key noun overlap check
+        issues.extend(self._check_semantic_grounding(answer, context))
 
         # Add disclaimer if needed
         if issues:

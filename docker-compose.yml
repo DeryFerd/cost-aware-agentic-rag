@@ -9,42 +9,14 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/finrag
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
     depends_on:
-      - db
       - redis
     volumes:
       - ./data:/app/data
-    networks:
-      - finrag-network
-
-  # Next.js Frontend
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://api:8001
-    depends_on:
-      - api
-    networks:
-      - finrag-network
-
-  # PostgreSQL Database
-  db:
-    image: postgres:15-alpine
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=finrag
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     networks:
       - finrag-network
 
@@ -58,55 +30,7 @@ services:
     networks:
       - finrag-network
 
-  # Celery Worker
-  celery:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: celery -A src.tasks.celery_app worker --loglevel=info
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/finrag
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./data:/app/data
-    networks:
-      - finrag-network
-
-  # Celery Beat (Scheduler)
-  celery-beat:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: celery -A src.tasks.celery_app beat --loglevel=info
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/finrag
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
-    networks:
-      - finrag-network
-
-  # Monitoring (Optional)
-  # prometheus:
-  #   image: prom/prometheus
-  #   ports:
-  #     - "9090:9090"
-  #   volumes:
-  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
-
-  # grafana:
-  #   image: grafana/grafana
-  #   ports:
-  #     - "3001:3000"
-  #   environment:
-  #     - GF_SECURITY_ADMIN_PASSWORD=admin
-
 volumes:
-  postgres_data:
   redis_data:
 
 networks:

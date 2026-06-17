@@ -4,12 +4,24 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import networkx as nx
 
 logger = logging.getLogger(__name__)
+
+# Try SpaCy for NER-based entity extraction
+_SPACY_AVAILABLE = False
+_spacy_nlp = None
+try:
+    import spacy
+    _spacy_nlp = spacy.load("en_core_web_sm")
+    _SPACY_AVAILABLE = True
+    logger.info("SpaCy NER available for entity extraction")
+except (ImportError, OSError):
+    logger.info("SpaCy not available, using regex-only entity extraction")
 
 
 @dataclass
@@ -41,10 +53,23 @@ class KnowledgeTriple:
 class FinancialKnowledgeGraph:
     """Knowledge graph for financial documents."""
 
-    def __init__(self, storage_path: str | Path | None = None):
+    # SpaCy NER labels we extract
+    SPACY_NER_LABELS = {"PERSON", "ORG", "MONEY", "DATE", "GPE"}
+
+    # Map SpaCy labels to our entity types
+    SPACY_LABEL_MAP = {
+        "PERSON": "PERSON",
+        "ORG": "COMPANY",
+        "MONEY": "MONEY",
+        "DATE": "DATE",
+        "GPE": "LOCATION",
+    }
+
+    def __init__(self, storage_path: str | Path | None = None, llm_client=None):
         self.graph = nx.DiGraph()
         self.storage_path = Path(storage_path) if storage_path else None
         self._triple_patterns = self._init_patterns()
+        self._llm_client = llm_client
 
     def _init_patterns(self) -> list[tuple[str, str, str]]:
         """Initialize regex patterns for entity extraction."""
@@ -56,8 +81,8 @@ class FinancialKnowledgeGraph:
             (r'(?:CEO|CFO|CTO|Director|Officer)\s+[A-Z][a-z]+\s+[A-Z][a-z]+', "PERSON"),
         ]
 
-    def extract_entities(self, text: str) -> list[Entity]:
-        """Extract entities from text using pattern matching.
+    def _extract_entities_spacy(self, text: str) -> list[Entity]:
+        """Extract entities using SpaCy NER.
 
         Args:
             text: Document text
@@ -65,9 +90,34 @@ class FinancialKnowledgeGraph:
         Returns:
             List of extracted entities
         """
-        import re
+        if not _SPACY_AVAILABLE or _spacy_nlp is None:
+            return []
+
+        doc = _spacy_nlp(text)
+        entities = []
+        for ent in doc.ents:
+            if ent.label_ in self.SPACY_NER_LABELS:
+                entity_type = self.SPACY_LABEL_MAP.get(ent.label_, ent.label_)
+                entities.append(Entity(
+                    name=ent.text.strip(),
+                    entity_type=entity_type,
+                ))
+        return entities
+
+    def extract_entities(self, text: str) -> list[Entity]:
+        """Extract entities from text using pattern matching.
+
+        Combines regex patterns and SpaCy NER when available.
+
+        Args:
+            text: Document text
+
+        Returns:
+            List of extracted entities
+        """
         entities = []
 
+        # Regex-based extraction
         for pattern, entity_type in self._triple_patterns:
             matches = re.finditer(pattern, text, re.IGNORECASE)
             for match in matches:
@@ -75,6 +125,9 @@ class FinancialKnowledgeGraph:
                     name=match.group().strip(),
                     entity_type=entity_type,
                 ))
+
+        # SpaCy NER extraction
+        entities.extend(self._extract_entities_spacy(text))
 
         # Deduplicate
         seen = set()
@@ -87,10 +140,55 @@ class FinancialKnowledgeGraph:
 
         return unique
 
+    def _extract_triples_llm(self, text: str) -> list[KnowledgeTriple]:
+        """Extract triples using an LLM client.
+
+        Args:
+            text: Document text
+
+        Returns:
+            List of KnowledgeTriple from LLM
+        """
+        if self._llm_client is None:
+            return []
+
+        prompt = (
+            "Extract entity-relationship triples from this text. "
+            "Return as a JSON list of objects with keys: subject, predicate, object. "
+            "Only return the JSON array, no explanation.\n\n"
+            f"Text: {text[:3000]}"
+        )
+
+        try:
+            response = self._llm_client.invoke(prompt)
+            content = response.content if hasattr(response, "content") else str(response)
+
+            # Parse JSON response
+            import json as _json
+            # Try to extract JSON from the response
+            json_match = re.search(r'\[.*\]', content, re.DOTALL)
+            if not json_match:
+                return []
+
+            triples_data = _json.loads(json_match.group())
+            triples = []
+            for item in triples_data:
+                if all(k in item for k in ("subject", "predicate", "object")):
+                    triples.append(KnowledgeTriple(
+                        subject=item["subject"],
+                        predicate=item["predicate"],
+                        object=item["object"],
+                        confidence=0.7,
+                    ))
+            return triples
+        except Exception as e:
+            logger.warning(f"LLM triple extraction failed: {e}")
+            return []
+
     def extract_triples(self, text: str) -> list[KnowledgeTriple]:
         """Extract knowledge triples from financial text.
 
-        Uses heuristic patterns for financial relationships.
+        Uses heuristic patterns and optionally an LLM.
 
         Args:
             text: Document text
@@ -98,7 +196,6 @@ class FinancialKnowledgeGraph:
         Returns:
             List of KnowledgeTriple
         """
-        import re
         triples = []
 
         # Pattern: "Company reported $X revenue"
@@ -157,6 +254,9 @@ class FinancialKnowledgeGraph:
                 object=industry.strip(),
                 confidence=0.85,
             ))
+
+        # LLM-based extraction
+        triples.extend(self._extract_triples_llm(text))
 
         return triples
 
@@ -280,7 +380,7 @@ class FinancialKnowledgeGraph:
         edges = self.graph.number_of_edges()
         logger.info(f"Knowledge graph saved to {save_path} ({nodes} nodes, {edges} edges)")
 
-    def load(self, path: str | Path | None = bool):
+    def load(self, path: str | Path | None = None):
         """Load knowledge graph from file."""
         load_path = Path(path) if path else self.storage_path
         if not load_path or not load_path.exists():

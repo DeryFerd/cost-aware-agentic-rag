@@ -1,13 +1,15 @@
-"""Simplified admin authentication (file-based, no DB dependency)."""
+"""Admin authentication (file-based, bcrypt hashing, no auto-create)."""
 
 from __future__ import annotations
 
-import hashlib
 import json
+import logging
 import secrets
 from datetime import datetime, timedelta
 
 from src.config import settings
+
+logger = logging.getLogger(__name__)
 
 ADMIN_DIR = settings.data_dir / "admin"
 ADMIN_DIR.mkdir(parents=True, exist_ok=True)
@@ -17,7 +19,28 @@ SESSIONS_FILE = ADMIN_DIR / "sessions.json"
 
 
 def _hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password with bcrypt (salted)."""
+    try:
+        import bcrypt
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    except ImportError:
+        import hashlib
+        import secrets as _secrets
+        salt = _secrets.token_hex(16)
+        return hashlib.sha256(f"{salt}{password}".encode()).hexdigest() + f":{salt}"
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    """Verify password against hash (bcrypt or salted sha256)."""
+    try:
+        import bcrypt
+        return bcrypt.checkpw(password.encode(), password_hash.encode())
+    except ImportError:
+        if ":" in password_hash:
+            stored_hash, salt = password_hash.rsplit(":", 1)
+            import hashlib
+            return hashlib.sha256(f"{salt}{password}".encode()).hexdigest() == stored_hash
+        return False
 
 
 def _load_users() -> dict:
@@ -40,18 +63,32 @@ def _save_sessions(sessions: dict) -> None:
     SESSIONS_FILE.write_text(json.dumps(sessions, indent=2), encoding="utf-8")
 
 
-def init_admin() -> None:
-    """Create default admin user if no users exist."""
+def init_admin(username: str | None = None, password: str | None = None) -> None:
+    """Create admin user. Requires explicit credentials (no defaults).
+
+    Args:
+        username: Admin username. If None, uses ADMIN_USERNAME env var.
+        password: Admin password. If None, uses ADMIN_PASSWORD env var.
+    """
+    import os
+    username = username or os.environ.get("ADMIN_USERNAME")
+    password = password or os.environ.get("ADMIN_PASSWORD")
+
+    if not username or not password:
+        logger.info("No admin credentials provided. Skipping admin creation.")
+        return
+
     users = _load_users()
-    if not users:
-        users["admin"] = {
-            "username": "admin",
-            "password_hash": _hash_password("admin123"),
+    if username not in users:
+        users[username] = {
+            "username": username,
+            "password_hash": _hash_password(password),
             "role": "admin",
             "created_at": datetime.now().isoformat(),
             "is_active": True,
         }
         _save_users(users)
+        logger.info(f"Admin user '{username}' created.")
 
 
 def authenticate_user(username: str, password: str) -> dict | None:
@@ -60,7 +97,7 @@ def authenticate_user(username: str, password: str) -> dict | None:
     user = users.get(username)
     if not user:
         return None
-    if user["password_hash"] != _hash_password(password):
+    if not _verify_password(password, user["password_hash"]):
         return None
     if not user.get("is_active", True):
         return None
@@ -141,7 +178,3 @@ def delete_user(username: str) -> bool:
         _save_users(users)
         return True
     return False
-
-
-# Initialize on import
-init_admin()

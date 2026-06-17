@@ -4,22 +4,36 @@ Instead of keyword matching, this module provides:
 1. A trained classifier for query complexity
 2. Cost-aware routing that balances quality vs cost
 3. Fallback to LLM-based classification when classifier is unavailable
+4. Metrics reporting with train/test split and cross-validation
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import pickle
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+)
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
 
 from src.config import settings
 
 logger = logging.getLogger(__name__)
+
+# ── Training Data File ─────────────────────────────────────────────
+TRAINING_DATA_PATH = settings.project_root / "data" / "training" / "routing_data.json"
 
 
 @dataclass
@@ -30,6 +44,38 @@ class RoutingResult:
     model: str
     cost_estimate: float
     method: str  # "classifier" or "llm"
+
+
+@dataclass
+class TrainingMetrics:
+    """Metrics from classifier training."""
+    accuracy: float
+    precision_simple: float
+    precision_complex: float
+    recall_simple: float
+    recall_complex: float
+    f1_simple: float
+    f1_complex: float
+    f1_macro: float
+    confusion_matrix: list[list[int]]
+    classification_report: str
+    cv_mean: float
+    cv_std: float
+    train_size: int
+    test_size: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "accuracy": self.accuracy,
+            "precision": {"simple": self.precision_simple, "complex": self.precision_complex},
+            "recall": {"simple": self.recall_simple, "complex": self.recall_complex},
+            "f1": {"simple": self.f1_simple, "complex": self.f1_complex, "macro": self.f1_macro},
+            "confusion_matrix": self.confusion_matrix,
+            "cv_mean": self.cv_mean,
+            "cv_std": self.cv_std,
+            "train_size": self.train_size,
+            "test_size": self.test_size,
+        }
 
 
 class QueryClassifier:
@@ -50,7 +96,7 @@ class QueryClassifier:
             except Exception as e:
                 logger.warning(f"Failed to load classifier: {e}")
 
-    def train(self, queries: list[str], labels: list[str]):
+    def train(self, queries: list[str], labels: list[str]) -> None:
         """Train the classifier on labeled data."""
         self.pipeline = Pipeline([
             ("tfidf", TfidfVectorizer(
@@ -89,10 +135,25 @@ class QueryClassifier:
         return prediction, confidence
 
 
-# ── Training Data ─────────────────────────────────────────────────
+# ── Training Data Loading ──────────────────────────────────────────
 
-TRAINING_DATA = [
-    # Simple queries (factual lookup)
+def _load_training_data() -> list[tuple[str, str]]:
+    """Load training data from JSON file with inline fallback."""
+    if TRAINING_DATA_PATH.exists():
+        try:
+            with open(TRAINING_DATA_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            examples = [(ex["query"], ex["complexity"]) for ex in data["examples"]]
+            logger.info(f"Loaded {len(examples)} training examples from {TRAINING_DATA_PATH}")
+            return examples
+        except Exception as e:
+            logger.warning(f"Failed to load training data from JSON: {e}. Using built-in fallback.")
+
+    # Fallback: minimal built-in data if JSON file is missing
+    return _FALLBACK_TRAINING_DATA
+
+
+_FALLBACK_TRAINING_DATA: list[tuple[str, str]] = [
     ("What is Microsoft's revenue?", "simple"),
     ("How many employees does Amazon have?", "simple"),
     ("What is Tesla's stock ticker?", "simple"),
@@ -108,8 +169,6 @@ TRAINING_DATA = [
     ("What is Nvidia's main business?", "simple"),
     ("Show me Tesla's employee count", "simple"),
     ("What is Microsoft's cloud revenue?", "simple"),
-
-    # Complex queries (comparison, analysis)
     ("Compare Microsoft and Amazon revenue growth", "complex"),
     ("Analyze Tesla's risk factors across years", "complex"),
     ("What are the implications of AI on tech companies?", "complex"),
@@ -127,11 +186,161 @@ TRAINING_DATA = [
     ("Analyze Nvidia's competitive moat in AI chips", "complex"),
 ]
 
+# Backward-compatible alias for tests
+TRAINING_DATA = _FALLBACK_TRAINING_DATA
+
+
+# ── Training with Metrics ──────────────────────────────────────────
+
+def train_with_metrics(
+    test_size: float = 0.2,
+    cv_folds: int = 5,
+    random_state: int = 42,
+) -> tuple[QueryClassifier, TrainingMetrics]:
+    """Train classifier with full metrics reporting.
+
+    Args:
+        test_size: Fraction of data to hold out for testing.
+        cv_folds: Number of cross-validation folds.
+        random_state: Random seed for reproducibility.
+
+    Returns:
+        Tuple of (trained classifier, training metrics).
+    """
+    data = _load_training_data()
+    queries, labels = zip(*data)
+
+    # Stratified train/test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        list(queries),
+        list(labels),
+        test_size=test_size,
+        random_state=random_state,
+        stratify=list(labels),
+    )
+
+    # Build and train pipeline
+    pipeline = Pipeline([
+        ("tfidf", TfidfVectorizer(
+            max_features=1000,
+            ngram_range=(1, 2),
+            stop_words="english",
+        )),
+        ("classifier", LogisticRegression(
+            max_iter=1000,
+            C=1.0,
+            class_weight="balanced",
+        )),
+    ])
+
+    pipeline.fit(X_train, y_train)
+
+    # Predictions on test set
+    y_pred = pipeline.predict(X_test)
+
+    # Core metrics
+    accuracy = accuracy_score(y_test, y_pred)
+    precision_simple = precision_score(y_test, y_pred, pos_label="simple", zero_division=0)
+    precision_complex = precision_score(y_test, y_pred, pos_label="complex", zero_division=0)
+    recall_simple = recall_score(y_test, y_pred, pos_label="simple", zero_division=0)
+    recall_complex = recall_score(y_test, y_pred, pos_label="complex", zero_division=0)
+    f1_simple = f1_score(y_test, y_pred, pos_label="simple", zero_division=0)
+    f1_complex = f1_score(y_test, y_pred, pos_label="complex", zero_division=0)
+    f1_macro = f1_score(y_test, y_pred, average="macro", zero_division=0)
+
+    # Confusion matrix
+    cm = confusion_matrix(y_test, y_pred, labels=["simple", "complex"])
+    cm_list = cm.tolist()
+
+    # Classification report
+    report_str = classification_report(y_test, y_pred, zero_division=0)
+
+    # Cross-validation on full dataset
+    full_pipeline = Pipeline([
+        ("tfidf", TfidfVectorizer(
+            max_features=1000,
+            ngram_range=(1, 2),
+            stop_words="english",
+        )),
+        ("classifier", LogisticRegression(
+            max_iter=1000,
+            C=1.0,
+            class_weight="balanced",
+        )),
+    ])
+
+    skf = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=random_state)
+    cv_scores = cross_val_score(full_pipeline, list(queries), list(labels), cv=skf, scoring="accuracy")
+
+    metrics = TrainingMetrics(
+        accuracy=accuracy,
+        precision_simple=precision_simple,
+        precision_complex=precision_complex,
+        recall_simple=recall_simple,
+        recall_complex=recall_complex,
+        f1_simple=f1_simple,
+        f1_complex=f1_complex,
+        f1_macro=f1_macro,
+        confusion_matrix=cm_list,
+        classification_report=report_str,
+        cv_mean=float(cv_scores.mean()),
+        cv_std=float(cv_scores.std()),
+        train_size=len(X_train),
+        test_size=len(X_test),
+    )
+
+    # Build classifier with the trained pipeline
+    classifier = QueryClassifier()
+    classifier.pipeline = pipeline
+
+    # Save model
+    model_dir = settings.project_root / "data" / "models"
+    model_dir.mkdir(parents=True, exist_ok=True)
+    model_path = model_dir / "query_classifier.pkl"
+
+    with open(model_path, "wb") as f:
+        pickle.dump(pipeline, f)
+
+    logger.info(f"Trained classifier with {len(queries)} examples, saved to {model_path}")
+    logger.info(f"Test accuracy: {accuracy:.3f} | CV: {cv_scores.mean():.3f} +/- {cv_scores.std():.3f}")
+    logger.info(f"\n{report_str}")
+
+    return classifier, metrics
+
+
+def print_metrics(metrics: TrainingMetrics) -> None:
+    """Pretty-print training metrics."""
+    print("\n" + "=" * 60)
+    print("CLASSIFIER TRAINING METRICS")
+    print("=" * 60)
+    print(f"  Train size:       {metrics.train_size}")
+    print(f"  Test size:        {metrics.test_size}")
+    print(f"  Accuracy:         {metrics.accuracy:.3f}")
+    print(f"  F1 (macro):       {metrics.f1_macro:.3f}")
+    print("-" * 60)
+    print("  Per-class metrics:")
+    print(f"    Simple  - Precision: {metrics.precision_simple:.3f}  Recall: {metrics.recall_simple:.3f}  F1: {metrics.f1_simple:.3f}")
+    print(f"    Complex - Precision: {metrics.precision_complex:.3f}  Recall: {metrics.recall_complex:.3f}  F1: {metrics.f1_complex:.3f}")
+    print("-" * 60)
+    print(f"  Cross-val score:  {metrics.cv_mean:.3f} +/- {metrics.cv_std:.3f}")
+    print("-" * 60)
+    print("  Confusion Matrix (rows=true, cols=pred):")
+    print("              Pred Simple  Pred Complex")
+    print(f"    True Simple   {metrics.confusion_matrix[0][0]:>6}      {metrics.confusion_matrix[0][1]:>6}")
+    print(f"    True Complex  {metrics.confusion_matrix[1][0]:>6}      {metrics.confusion_matrix[1][1]:>6}")
+    print("-" * 60)
+    print("  Classification Report:")
+    print(metrics.classification_report)
+    print("=" * 60)
+
+
+# ── Legacy Training API ────────────────────────────────────────────
 
 def train_classifier() -> QueryClassifier:
-    """Train the query classifier on labeled data."""
+    """Train the query classifier on labeled data (backward-compatible)."""
     classifier = QueryClassifier()
-    queries, labels = zip(*TRAINING_DATA)
+    data = _load_training_data()
+    queries, labels = zip(*data)
     classifier.train(list(queries), list(labels))
     return classifier
 
