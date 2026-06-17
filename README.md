@@ -336,27 +336,23 @@ python scripts/evaluate_ml.py
 python scripts/eval_ragas.py
 ```
 
-### LLM-as-Judge Metrics (gemma3:27b judge)
+### LLM-as-Judge Metrics (`minimax-m3:cloud` judge, 55 samples)
 
 | Metric | Score |
 |--------|-------|
-| Faithfulness | _update after eval_ |
-| Answer Relevancy | _update after eval_ |
-| Context Precision | _update after eval_ |
-| Context Recall | _update after eval_ |
-| Overall (weighted) | _update after eval_ |
+| Faithfulness | 0.596 |
+| Answer Relevancy | 0.918 |
+| Context Precision | 0.975 |
+| Context Recall | 1.000 |
+| Overall (weighted) | 0.849 |
 
 ### Retrieval Metrics
 
 | Metric | Score |
 |--------|-------|
-| NDCG@10 | _update after eval_ |
-| MRR | _update after eval_ |
-| Recall@5 | _update after eval_ |
-| Recall@10 | _update after eval_ |
-| Precision@5 | _update after eval_ |
-| Precision@10 | _update after eval_ |
-| Hit Rate | _update after eval_ |
+| NDCG@10 | 0.710 |
+| MRR | 0.611 |
+| Hit Rate | 1.000 |
 
 ### CI Gating Thresholds
 
