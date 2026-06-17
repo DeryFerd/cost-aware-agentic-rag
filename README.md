@@ -73,6 +73,7 @@ Production-grade Agentic RAG system for SEC 10-K Financial Document Analysis wit
 |-----------|-----------|---------|
 | LLM (simple) | Ollama Cloud — `gemma3:4b` | Fast factual queries |
 | LLM (complex) | Ollama Cloud — `gemma3:27b` | Multi-hop reasoning, vision |
+| LLM (judge) | Ollama Cloud — `minimax-m3:cloud` | LLM-as-Judge evaluation |
 | Embeddings | `BAAI/bge-small-en-v1.5` (384d, local) | Dense retrieval vectors |
 | Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` (local) | Precision reranking |
 | Vector DB | ChromaDB (PersistentClient) | Document storage + cosine search |
@@ -117,8 +118,8 @@ A four-node state graph (`planner → tools → generator → reflector`) with c
 NetworkX-based entity and relation extraction from SEC filings. Extracts companies, monetary values, dates, metrics, and persons using regex patterns. Builds knowledge triples (e.g., `Microsoft → REPORTED_REVENUE → $245.1 billion`).
 
 ### Evaluation Pipeline
-- **Golden Set**: 55+ curated Q&A pairs across MSFT, AMZN, TSLA, GOOG, META, AAPL, NVDA
-- **LLM-as-Judge**: faithfulness, answer relevancy, context precision, context recall scores
+- **Golden Set**: 76 curated Q&A pairs across MSFT, AMZN, TSLA, GOOG, META, AAPL, NVDA
+- **LLM-as-Judge**: `minimax-m3:cloud` scores faithfulness, answer relevancy, context precision, context recall
 - **Retrieval Metrics**: NDCG@10, MRR, Recall@5, Recall@10, Precision@5, Precision@10, Hit Rate
 - **CI Gating**: configurable thresholds that gate deployment based on evaluation scores
 
