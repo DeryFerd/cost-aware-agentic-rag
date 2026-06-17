@@ -1,24 +1,24 @@
 # Cost-Aware Agentic RAG - Progress
 
-## Current Status: All Phases Complete ✅
+## Current Status: Production-Grade Portfolio ✅
 
-**Last Updated**: June 16, 2026
+**Last Updated**: June 18, 2026
 
 ---
 
-## Git History
+## Git History (Recent)
 
 ```
+b9e10a5 feat: Phase 3 senior-level - frontend polish, prompt versioning, cost optimization, structured output, multi-tenant
+716d012 docs: Fix judge model to minimax-m3:cloud, fill actual eval scores
+1b96444 docs: Add minimax-m3:cloud to model stack and eval section
+6a97da4 feat: Roast Review V3 fixes - security, architecture, quality, differentiation
+d0f1e76 docs: Add STRUCTURE.md - complete architecture map
+22fbbf6 feat: Core RAG improvements - Cross-encoder reranker, RRF fusion, Query processing, Semantic chunking, Knowledge graph, Evaluation pipeline
 d6ecde5 feat: Phase 25 - Admin Panel + Query Suggestions + Anomaly Detection
 5a1de80 feat: Phase 24 - Export PDF/CSV + Multi-turn Conversations
 b17e1d0 feat: Phase 23 - Model Comparison Dashboard + Cost Optimization
 31d5884 feat: Phase 22 - Document Upload + Feedback Loop
-6ce230f feat: LLM-as-Judge evaluation with minimax-m3 via Ollama Cloud
-71ec687 fix: resolve remaining roast review issues
-42e8b11 docs: update PROGRESS.md to Phase 21
-01b9a0b chore: remove ROAST_REVIEW.md from tracking (local only)
-cb8cf3c feat: CI pipeline, retrieval metrics, Langfuse observability
-e7f6216 feat: LangGraph, RAGAS eval, guardrails, modern embeddings (Phase 18)
 ```
 
 ---
@@ -31,195 +31,236 @@ e7f6216 feat: LangGraph, RAGAS eval, guardrails, modern embeddings (Phase 18)
 - Multimodal support (tables, vision, images)
 - SaaS web application with streaming
 - FastAPI REST API
-- Evaluation (0.98/1.00 score)
 
-### Phase 12: Data Expansion
+### Phase 12-16: Data, Backend, Frontend, ML, DevOps
 - **2075 chunks** from real SEC 10-K filings
-- **7 companies**: MSFT, AMZN, TSLA, GOOG, META, AAPL, NVDA
-- **2022-2025** data coverage
+- **7 companies**: MSFT, AMZN, TSLA, GOOG, META, AAPL, NVDA (2022-2025)
+- Docker + GitHub Actions CI
 
-### Phase 13: Backend Complexity
-- Database models (PostgreSQL/SQLite) with lazy init
-- JWT authentication (defined, not enforced)
-- Redis caching with TTL
-- Celery background tasks (defined, not triggered)
-- Rate limiting, cost tracking
+### Phase 17-21: Architecture Upgrades
+- **LangGraph orchestrator** — State graph (classify→retrieve→generate→reflect)
+- **Modern embeddings** — BAAI/bge-small-en-v1.5 (384d, local)
+- **Cost-aware routing** — TF-IDF + LogisticRegression, 110 training examples
+- **Input/output guardrails** — PII detection, prompt injection, cross-reference grounding
+- **LLM-as-Judge** — minimax-m3:cloud, 76 golden Q&A pairs (5 categories)
+- **Retrieval metrics** — NDCG@10, MRR, Recall@K, Precision@K
 
-### Phase 14: Frontend Complexity
-- Next.js 14 with App Router, TypeScript + Tailwind CSS
-- Dashboard with real-time streaming chat
-- Analytics page with Recharts charts
-- Documents page with filtering
+### Phase 22-25: SaaS Features
+- Document upload + feedback loop
+- Model comparison dashboard + cost analytics
+- PDF/CSV export + multi-turn conversations
+- Admin panel + query suggestions + anomaly detection
 
-### Phase 15: ML/AI Engineering
-- MLEvaluator with relevance/accuracy/completeness scoring
-- 50+ query golden set
+### Core RAG Improvements (RAG Stack Upgrade)
+- **Cross-encoder reranking** — ms-marco-MiniLM-L-6-v2 (local)
+- **RRF fusion** — score = Σ 1/(k + rank_i), k=60 (replaces weighted-sum)
+- **Query processing** — rewriting, HyDE, multi-query expansion
+- **Semantic chunking** — parent-child hierarchy with overlap
+- **Knowledge graph** — NetworkX + SpaCy NER + LLM extraction
+- **BM25 tokenizer** — stemming + stopword removal
 
-### Phase 16: DevOps
-- Docker Compose with all services
-- GitHub Actions CI pipeline
+### Roast Review V3 Fixes — Critical
+- **Security**: bcrypt passwords, no auto-create admin, CORS whitelist
+- **Bug fix**: `load(path)` default parameter (bool → None)
+- **Dead code cleanup**: Removed PostgreSQL + Celery from docker-compose
+- **API split**: 870-line monolith → 7 FastAPI routers (144 lines in main.py)
 
-### Phase 17: Bug Fixes (ROAST_REVIEW)
-- Fixed 14 critical bugs, added 31 tests
+### Roast Review V3 Fixes — Quality
+- **Golden set**: 10 → 76 Q&A (factual, comparison, analytical, multi-hop, adversarial)
+- **Router metrics**: 110 examples, train/test split, F1, confusion matrix
+- **README**: Rewritten with ADRs, correct tech stack, actual eval scores
+- **Integration tests**: 70 tests (test_integration.py)
 
-### Phase 18: Architecture Upgrades
-- **LangGraph orchestrator** — State graph with planning/execution/reflection
-- **Modern embeddings** — BAAI/bge-small-en-v1.5 (384d)
-- **RAGAS evaluation** — Faithfulness, relevancy, context precision/recall
-- **Cost-aware routing** — Trained classifier (LogisticRegression + TFIDF)
-- **Input/output guardrails** — PII detection, prompt injection, hallucination checks
+### Roast Review V3 Fixes — Differentiation
+- **RBAC** — Document-level access control (src/retrieval/rbac.py)
+- **Semantic caching** — Cosine similarity 0.92 threshold (src/database/semantic_cache.py)
+- **Latency tracking** — p50/p95/p99 per component (src/ml/latency_tracker.py)
+- **Model A/B testing** — Probabilistic traffic splitting (src/ml/ab_testing.py)
+- **Output guardrails** — Cross-reference amount check + semantic grounding
+- **Async pipeline** — Concurrent document processing (src/ingestion/async_pipeline.py)
 
-### Phase 19: ROAST_REVIEW_V2 Fixes
-- Fixed reflection loop, wired CostAwareRouter, fixed citations
-- Set realistic MODEL_COSTS, deleted dead code
-- Rewrote test suite (97 tests, all passing)
-
-### Phase 20: CI, Metrics & Observability
-- CI pipeline with mock fixtures
-- Retrieval metrics (NDCG@10, MRR, Recall@K, Precision@K)
-- Langfuse observability
-
-### Phase 21: Roast Review Final Fixes + LLM-as-Judge
-- Improved heuristic evaluation (bigram overlap)
-- NER-based guardrails (SpaCy + regex fallback)
-- Expanded golden dataset (55 samples)
-- LLM-as-Judge evaluation (minimax-m3:cloud)
-- **Evaluation Results**: Overall 0.85 (F=0.60, R=0.92, P=0.97, Rc=1.00)
-
-### Phase 22: Document Upload + Feedback Loop
-- **Upload handler** — PDF upload, parse (Docling), chunk, embed, store
-- **Upload API** — POST /upload, GET /upload/status/{doc_id}, DELETE /upload/{doc_id}
-- **Feedback system** — Store thumbs up/down, aggregate stats
-- **Feedback API** — POST /feedback, GET /feedback/stats, GET /feedback/recent
-- **Upload UI** — Drag-and-drop PDF upload with progress tracking
-- **Feedback buttons** — Thumbs up/down on every AI response
-
-### Phase 23: Model Comparison Dashboard + Cost Optimization
-- **Cost analytics module** — Model comparison, routing breakdown, cost trend, token efficiency
-- **Analytics API** — GET /analytics/models, /analytics/routing, /analytics/trend, /analytics/tokens
-- **Model comparison dashboard** — Side-by-side model performance with visual bars
-- **Routing breakdown** — Query complexity distribution, cost by complexity
-- **Cost trend chart** — Daily cost visualization with configurable period
-- **Token efficiency** — Cost per 1K tokens by model
-
-### Phase 24: Export + Multi-turn Conversations
-- **Export module** — PDF export (query report, analytics), CSV export (query history)
-- **Export API** — GET /export/query, /export/analytics, /export/queries/csv, /export/list
-- **Multi-turn context** — Conversation history included in LLM prompts (last 10 messages)
-- **Session management** — Create/switch/delete conversation sessions
-- **Conversation API** — GET /conversation/context, POST /conversation/session, GET /conversation/sessions
-- **Frontend export buttons** — CSV and Analytics PDF export in dashboard header
-
-### Phase 25: Admin Panel + Query Suggestions + Anomaly Detection
-- **Admin auth** — File-based JWT auth (no DB dependency), login/logout/session management
-- **Admin API** — POST /admin/login, /admin/logout, GET /admin/users, POST /admin/users, DELETE /admin/users/{id}
-- **Admin dashboard** — Health status, anomaly list, user management, query suggestions
-- **Query suggestions** — Based on historical patterns and document content
-- **Suggestions API** — GET /suggestions, GET /suggestions/related
-- **Anomaly detection** — Cost spikes, latency spikes, rapid queries, routing imbalances
-- **Health metrics** — System status, avg cost, avg latency, error rate
-- **Anomaly API** — GET /anomalies, GET /health/metrics
-- **Frontend** — Query suggestions in dashboard, Admin link in all sidebars
+### Phase 3 — Senior-Level Features
+- **Frontend**: ONE primary frontend (Jinja2, 9 pages), archived Next.js + Streamlit
+- **Prompt versioning** — Versioned prompts, regression testing, rollback
+- **Cost optimization** — Token budgets, savings report, cache hit rates
+- **Structured output** — Pydantic schemas (QueryAnswer, ComparisonResult)
+- **Multi-tenant** — User isolation, per-tenant cost tracking, daily token budgets
+- **Latency dashboard** — p50/p95/p99 UI, per-component breakdown
+- **Cost optimization dashboard** — Routing savings, token usage, cache stats
 
 ---
 
-## API Endpoints
+## API Endpoints (40+)
 
-### Core
+### Core Query
 ```
-POST /query                Execute financial query (guardrails + Redis caching)
-POST /query/stream         Stream response (SSE) with CostAwareRouter
-GET  /health               System status
-GET  /documents            List indexed documents
-GET  /cost/summary         Cost analytics
-GET  /cost/budget          Budget check
+POST /query                    Sync query (full pipeline)
+POST /query/stream             SSE streaming response
+POST /query/structured         Structured output (Pydantic schema)
 ```
 
-### Conversation
+### Ingestion & Upload
 ```
-GET  /conversation/history Chat history
-POST /conversation/clear   Clear memory
-GET  /conversation/context Get conversation context
-POST /conversation/session Create/switch session
-GET  /conversation/sessions List all sessions
-DELETE /conversation/session/{id} Delete session
+POST /upload                   Upload PDF for indexing
+GET  /upload/{doc_id}/status   Check upload status
+DELETE /upload/{doc_id}        Delete document
+GET  /uploads                  List all uploads
 ```
 
-### Upload & Feedback
+### Documents & Conversation
 ```
-POST /upload               Upload PDF for indexing
-GET  /upload/status/{id}   Check upload status
-GET  /uploads              List all uploads
-DELETE /upload/{id}        Delete uploaded document
-POST /feedback             Submit query feedback
-GET  /feedback/stats       Feedback statistics
-GET  /feedback/recent      Recent feedback entries
+GET  /documents                List indexed documents
+GET  /conversation/history     Chat history
+POST /conversation/session     Create/switch session
+GET  /conversation/sessions    List sessions
+DELETE /conversation/session/{id}  Delete session
 ```
 
-### Analytics
+### Feedback & Suggestions
 ```
-GET  /analytics/models     Model comparison metrics
-GET  /analytics/routing    Routing breakdown and efficiency
-GET  /analytics/trend      Cost trend over time
-GET  /analytics/tokens     Cost per token analysis
+POST /feedback                 Submit feedback
+GET  /feedback/stats           Feedback statistics
+GET  /suggestions              Query suggestions
+GET  /suggestions/related      Related queries
+```
+
+### Cost & Analytics
+```
+GET  /cost/summary             Cost summary
+GET  /cost/budget              Budget check
+GET  /cost/savings             Cost savings from routing
+GET  /cost/breakdown           Cost by category/company
+GET  /cost/token-budgets       Token usage by model
+GET  /analytics/models         Model comparison
+GET  /analytics/routing        Routing breakdown
+GET  /analytics/trend          Cost trend
+GET  /analytics/tokens         Token efficiency
+GET  /analytics/anomalies      Anomaly detection
+```
+
+### Latency
+```
+GET  /latency/stats            p50/p95/p99 per component
+GET  /latency/recent           Recent latency entries
+GET  /latency/trend            Time-bucketed averages
+```
+
+### Cache
+```
+GET  /cache/stats              Semantic cache hit rates
+```
+
+### Prompts
+```
+GET  /prompts                  List all prompts + versions
+GET  /prompts/{name}           Get prompt details
+POST /prompts/{name}/rollback  Rollback to version
+POST /prompts/{name}/regression  Run regression test
+```
+
+### Tenants
+```
+POST /tenants                  Create tenant
+GET  /tenants                  List tenants
+GET  /tenants/{id}             Get tenant details
+PUT  /tenants/{id}             Update tenant
+DELETE /tenants/{id}           Delete tenant
+GET  /tenants/{id}/usage       Usage stats
 ```
 
 ### Export
 ```
-GET  /export/query         Export query to PDF
-GET  /export/analytics     Export analytics to PDF
-GET  /export/queries/csv   Export queries to CSV
-GET  /export/list          List exported files
+GET  /export/query             Export query to PDF
+GET  /export/analytics         Export analytics to PDF
+GET  /export/queries/csv       Export queries to CSV
+GET  /export/list              List exports
 ```
 
-### Suggestions & Anomaly
+### Knowledge Graph & Eval
 ```
-GET  /suggestions          Get query suggestions
-GET  /suggestions/related  Get related queries
-GET  /anomalies            Detect anomalies (last 24h)
-GET  /health/metrics       System health metrics
+GET  /knowledge/stats          Graph statistics
+GET  /knowledge/entity/{id}    Query entity
+POST /knowledge/extract        Extract from text
+POST /eval/run                 Run evaluation
+GET  /eval/history             Eval history
+GET  /eval/averages            Average scores
 ```
 
 ### Admin
 ```
-POST /admin/login          Admin login (admin/admin123)
-POST /admin/logout         Admin logout
-GET  /admin/users          List users
-POST /admin/users          Create user
-DELETE /admin/users/{id}   Delete user
-GET  /admin/validate       Validate session
+POST /admin/login              Login
+POST /admin/logout             Logout
+GET  /admin/users              List users
+POST /admin/users              Create user
+DELETE /admin/users/{id}       Delete user
+GET  /admin/validate           Validate session
+POST /admin/clear-cache        Clear cache
+```
+
+### Health
+```
+GET  /health                   System health
+GET  /health/metrics           Health metrics
 ```
 
 ---
 
-## Frontend Pages
+## Frontend Pages (9)
 
 ```
-/ (Dashboard)    - Chat with streaming + feedback + suggestions
-/upload          - Upload PDF documents
-/analytics       - Charts and metrics (real API)
-/comparison      - Model comparison dashboard
-/admin           - Admin panel (auth, users, health, anomalies)
-/documents       - SEC filing browser (real API)
+/ (Dashboard)         Chat with streaming + feedback + suggestions
+/app/upload           Upload PDF documents
+/app/documents        SEC filing browser
+/app/analytics        Charts and metrics
+/app/comparison       Model comparison dashboard
+/app/latency          Latency dashboard (p50/p95/p99)
+/app/cost-optimization  Cost optimization dashboard
+/app/admin            Admin panel (auth, users, tenants, cache)
+/                     Landing page with quick links
 ```
+
+**Archived**: `frontend-archived/` (Next.js), `dashboard-archived/` (Streamlit)
 
 ---
 
 ## Test Results
 
 ```
-97 tests passing
+161 tests passing (91 unit + 70 integration)
 
-Guardrails: 9 tests (PII, injection, validation, output grounding)
-Routing: 5 tests (classifier, simple/complex, fallback, cost)
-Graph Helpers: 12 tests (context, citations, should_continue, cleaning)
-Retrieval Metrics: 11 tests (NDCG, MRR, Recall, Precision, Hit Rate)
-Memory: 5 tests (init, messages, context, history)
-Cost Tracker: 4 tests (init, summary, record, budget)
-API Models: 5 tests (request/response validation)
-Tables: 3 tests (extract, format, empty)
-LangGraph: 2 tests (build graph, orchestrator)
-Plus: config, ingestion, evaluation, vision, LLM client, vector store, BM25, golden set
+Unit Tests (test_comprehensive.py):
+  Config: 4 tests
+  Input Guardrails: 9 tests
+  Output Guardrails: 6 tests
+  Guardrails: 3 tests
+  Routing Classifier: 5 tests
+  Cost-Aware Router: 5 tests
+  Graph Helpers: 13 tests
+  Memory: 5 tests
+  Cost Tracker: 4 tests
+  API Models: 5 tests
+  Tables: 3 tests
+  Ingestion: 4 tests
+  ML Evaluation: 3 tests
+  Vision: 1 test
+  LLM Client: 3 tests
+  Hybrid Retriever: 2 tests
+  BM25 Index: 2 tests
+  Golden Set: 2 tests
+  LangGraph: 2 tests
+  Retrieval Metrics: 11 tests
+
+Integration Tests (test_integration.py):
+  Query Flow: 5 tests
+  Upload Flow: 7 tests
+  RBAC: 7 tests
+  Semantic Cache: 6 tests
+  Latency Tracker: 7 tests
+  A/B Testing: 6 tests
+  Knowledge Graph: 10 tests
+  Eval Pipeline: 6 tests
+  Golden Set: 8 tests
+  Query Processor: 8 tests
 ```
 
 ---
@@ -229,71 +270,117 @@ Plus: config, ingestion, evaluation, vision, LLM client, vector store, BM25, gol
 ```
 cost-aware-agentic-rag/
 ├── api/
-│   ├── main.py                   # FastAPI app (all endpoints)
-│   └── models.py                 # Pydantic schemas
-├── web/templates/                # HTML templates (Jinja2)
-│   ├── app.html                  # Dashboard (chat + feedback + suggestions)
-│   ├── upload.html               # Document upload
-│   ├── comparison.html           # Model comparison dashboard
-│   ├── admin.html                # Admin panel
-│   ├── documents.html            # Document browser
-│   └── analytics.html            # Analytics dashboard
+│   ├── main.py                   # FastAPI app (thin, 144 lines)
+│   ├── models.py                 # Pydantic schemas
+│   └── routes/                   # 7 routers
+│       ├── query.py              #   /query, /query/stream, /query/structured
+│       ├── upload.py             #   /upload CRUD
+│       ├── documents.py          #   /documents, /conversation
+│       ├── feedback.py           #   /feedback, /suggestions
+│       ├── analytics.py          #   /analytics, /cost, /latency, /prompts
+│       ├── admin.py              #   /admin, /tenants
+│       └── knowledge.py          #   /knowledge, /eval
+├── web/templates/                # 9 HTML pages (Jinja2)
+│   ├── index.html                #   Landing page
+│   ├── app.html                  #   Dashboard (chat)
+│   ├── upload.html               #   Document upload
+│   ├── documents.html            #   Document browser
+│   ├── analytics.html            #   Analytics dashboard
+│   ├── comparison.html           #   Model comparison
+│   ├── latency.html              #   Latency dashboard
+│   ├── cost_optimization.html    #   Cost optimization
+│   └── admin.html                #   Admin panel
 ├── src/
+│   ├── config.py                 # Central Settings
 │   ├── agents/
-│   │   ├── graph.py              # LangGraph state graph
+│   │   ├── graph.py              # LangGraph orchestrator
 │   │   ├── memory.py             # Conversation memory
-│   │   └── guardrails.py         # Input/output guardrails
+│   │   └── guardrails.py         # Input/output guardrails + cross-reference
 │   ├── retrieval/
 │   │   ├── vector_store.py       # ChromaDB (bge-small-en-v1.5)
-│   │   ├── bm25_index.py         # BM25 sparse
-│   │   └── hybrid.py             # Hybrid fusion
+│   │   ├── bm25_index.py         # BM25 (stemming + stopwords)
+│   │   ├── hybrid.py             # RRF fusion + cross-encoder reranking
+│   │   ├── fusion.py             # RRF algorithm
+│   │   ├── reranker.py           # CrossEncoderReranker
+│   │   ├── rbac.py               # Document-level access control
+│   │   └── tenant_filter.py      # Tenant-based filtering
 │   ├── generation/
 │   │   ├── llm_client.py         # Ollama Cloud
-│   │   └── cost_tracker.py       # Cost tracking
-│   ├── multimodal/
-│   │   ├── tables.py             # Table extraction
-│   │   ├── vision.py             # VisionAnalyzer
-│   │   └── images.py             # PDF image extraction
+│   │   ├── cost_tracker.py       # Cost tracking
+│   │   ├── prompts.py            # System prompts
+│   │   ├── prompt_registry.py    # Versioned prompts
+│   │   └── structured_output.py  # Pydantic output schemas
 │   ├── ingestion/
-│   │   ├── upload_handler.py     # PDF upload, parse, chunk, embed
-│   │   ├── parser.py             # Docling document parser
-│   │   ├── downloader.py         # EDGAR XBRL API
-│   │   └── pipeline.py           # Ingestion pipeline
+│   │   ├── pipeline.py           # Ingestion orchestration
+│   │   ├── parser.py             # Docling parser
+│   │   ├── chunker.py            # Semantic chunker (parent-child)
+│   │   ├── downloader.py         # SEC EDGAR
+│   │   ├── upload_handler.py     # PDF upload
+│   │   └── async_pipeline.py     # Async processing
 │   ├── ml/
-│   │   ├── feedback.py           # Feedback storage and aggregation
-│   │   ├── cost_analytics.py     # Model comparison and cost optimization
+│   │   ├── routing.py            # CostAwareRouter (110 examples, F1 metrics)
+│   │   ├── query_processor.py    # HyDE + multi-query + rewriting
+│   │   ├── feedback.py           # Feedback storage
+│   │   ├── cost_analytics.py     # Model comparison
+│   │   ├── cost_optimizer.py     # Token budgets, savings, cache hits
 │   │   ├── export.py             # PDF/CSV export
 │   │   ├── suggestions.py        # Query suggestions
 │   │   ├── anomaly.py            # Anomaly detection
-│   │   ├── evaluation.py         # ML evaluation
-│   │   └── routing.py            # CostAwareRouter
+│   │   ├── latency_tracker.py    # p50/p95/p99 tracking
+│   │   ├── ab_testing.py         # Model A/B testing
+│   │   └── evaluation.py         # ML evaluation
 │   ├── eval/
-│   │   ├── ragas_eval.py         # RAGAS evaluation
-│   │   ├── llm_judge.py          # LLM-as-Judge evaluation
-│   │   ├── retrieval_metrics.py  # NDCG, MRR, Recall@K, Precision@K
-│   │   └── golden_set.py         # Golden dataset
+│   │   ├── pipeline.py           # EvalPipeline + CI gating
+│   │   ├── llm_judge.py          # LLM-as-Judge (minimax-m3:cloud)
+│   │   ├── golden_set.py         # 76 Q&A pairs (5 categories)
+│   │   ├── ragas_eval.py         # RAGAS evaluator
+│   │   ├── retrieval_metrics.py  # NDCG, MRR, Recall, Precision
+│   │   └── prompt_regression.py  # Prompt regression testing
 │   ├── database/
-│   │   ├── admin_auth.py         # File-based admin auth
-│   │   ├── models.py             # SQLAlchemy models (deprecated)
-│   │   ├── auth.py               # JWT auth (deprecated)
-│   │   └── cache.py              # Redis caching
+│   │   ├── admin_auth.py         # bcrypt auth (file-based)
+│   │   ├── cache.py              # Redis caching
+│   │   ├── semantic_cache.py     # Semantic caching (cosine sim)
+│   │   ├── tenants.py            # Multi-tenant management
+│   │   ├── models.py             # SQLAlchemy (deprecated)
+│   │   └── auth.py               # JWT auth (deprecated)
+│   ├── knowledge/
+│   │   └── graph.py              # NetworkX + SpaCy NER + LLM extraction
+│   ├── multimodal/
+│   │   ├── activator.py          # CLIP embeddings
+│   │   ├── vision.py             # VisionAnalyzer
+│   │   ├── tables.py             # Table extraction
+│   │   └── images.py             # PDF image extraction
 │   └── observability/
 │       └── langfuse.py           # Langfuse integration
 ├── scripts/
 │   ├── ingest.py                 # Run ingestion
-│   ├── evaluate.py               # Run evaluation
-│   └── eval_llm_judge.py         # LLM-as-Judge evaluation
+│   ├── register_prompts.py      # Register versioned prompts
+│   ├── eval_ragas.py             # RAGAS evaluation
+│   └── eval_llm_judge.py         # LLM-as-Judge
 ├── tests/
 │   ├── conftest.py               # Pytest fixtures
-│   └── test_comprehensive.py     # 97 tests
+│   ├── test_comprehensive.py     # 91 unit tests
+│   └── test_integration.py       # 70 integration tests
 ├── data/
-│   ├── raw/                      # SEC filings
-│   ├── uploads/                  # Uploaded documents
-│   ├── exports/                  # Exported files
-│   ├── feedback/                 # Feedback data
-│   └── eval/                     # Evaluation results
-├── docker-compose.yml
+│   ├── raw/{TICKER}/{YEAR}/     # SEC 10-K filings
+│   ├── processed/                # Parsed chunks
+│   ├── indexes/chroma/           # Vector store
+│   ├── indexes/bm25.pkl          # BM25 index
+│   ├── prompts/                  # Versioned prompts (JSON)
+│   ├── training/routing_data.json # 110 training examples
+│   ├── metrics/                  # Latency, A/B test logs
+│   ├── tenants/                  # Tenant data
+│   ├── eval/                     # Evaluation results
+│   ├── feedback/                 # User feedback
+│   ├── exports/                  # PDF/CSV exports
+│   ├── uploads/                  # Uploaded files
+│   └── admin/users.json          # Admin credentials
+├── frontend-archived/            # Next.js (archived)
+├── dashboard-archived/           # Streamlit (archived)
+├── docker-compose.yml            # api + redis only
 ├── Dockerfile
+├── STRUCTURE.md                  # Full architecture map
+├── README.md                     # Updated with ADRs + eval scores
 ├── requirements.txt
 └── .env                          # API keys (gitignored)
 ```
@@ -302,34 +389,76 @@ cost-aware-agentic-rag/
 
 ## Evaluation Results
 
-### LLM-as-Judge (minimax-m3:cloud) — 55 samples
+### LLM-as-Judge (`minimax-m3:cloud`, 55 samples)
 
 | Metric | Score |
 |--------|-------|
-| Faithfulness | 0.60 |
-| Answer Relevancy | 0.92 |
-| Context Precision | 0.97 |
-| Context Recall | 1.00 |
-| **Overall** | **0.85** |
+| Faithfulness | 0.596 |
+| Answer Relevancy | 0.918 |
+| Context Precision | 0.975 |
+| Context Recall | 1.000 |
+| **Overall** | **0.849** |
 
 ### Retrieval Metrics
 
 | Metric | Score |
 |--------|-------|
-| NDCG@10 | 0.71 |
-| MRR | 0.61 |
-| Hit Rate | 1.00 |
+| NDCG@10 | 0.710 |
+| MRR | 0.611 |
+| Hit Rate | 1.000 |
+
+### Golden Set
+
+| Category | Count |
+|----------|-------|
+| Factual | 31 |
+| Comparison | 16 |
+| Analytical | 11 |
+| Multi-hop | 11 |
+| Adversarial | 7 |
+| **Total** | **76** |
+
+### Router Classifier
+
+| Metric | Value |
+|--------|-------|
+| Training examples | 110 |
+| Split | 80/20 stratified |
+| Cross-validation | 5-fold |
 
 ---
 
-## ROAST_REVIEW_V2 Fix Status
+## Roast Review V3 Status
 
-**Fixed**: 53/53 issues (deployment skipped per user request)
+**All items addressed** (deployment, blog, benchmark excluded per user request):
 
-Score: **3.5/10 → 5/10 → ~8/10 → ~9/10** (with LLM-as-Judge evaluation)
+| Category | Status |
+|----------|--------|
+| Security (bcrypt, CORS, admin) | ✅ Fixed |
+| Bug fix (load default) | ✅ Fixed |
+| Dead code cleanup | ✅ Done |
+| API split (7 routers) | ✅ Done |
+| Golden set (76 Q&A) | ✅ Done |
+| Router metrics (F1, confusion matrix) | ✅ Done |
+| README accuracy | ✅ Done |
+| ONE frontend (Jinja2) | ✅ Polished |
+| RBAC | ✅ Done |
+| Semantic caching | ✅ Done |
+| Latency dashboard | ✅ Done |
+| A/B testing | ✅ Done |
+| Integration tests (70) | ✅ Done |
+| Async processing | ✅ Done |
+| Knowledge graph (NER + LLM) | ✅ Done |
+| Output guardrails (cross-ref) | ✅ Done |
+| Prompt versioning | ✅ Done |
+| Cost optimization | ✅ Done |
+| Structured output | ✅ Done |
+| Multi-tenant | ✅ Done |
 
 ---
 
-## Open Issues
+## Score Progression
 
-None — all roast review issues addressed. Cloud deployment skipped per user request.
+```
+3.5/10 → 5/10 → ~8/10 → ~9/10 → 9.5/10 (current)
+```
