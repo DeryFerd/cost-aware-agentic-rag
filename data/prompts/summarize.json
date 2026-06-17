@@ -1,0 +1,16 @@
+{
+  "name": "summarize",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "template": "Summarize the following passages to answer the question.\nInclude key financial figures, dates, and specific facts.\nBe concise but thorough.\n\nQuestion: {question}\n\nPassages:\n{passages}",
+      "metadata": {
+        "author": "system",
+        "description": "Summarizes retrieved passages to answer a question"
+      },
+      "created_at": "2026-06-17T18:04:58.500603",
+      "updated_at": "2026-06-17T18:04:58.500619"
+    }
+  ],
+  "current_version": "1.0.0"
+}

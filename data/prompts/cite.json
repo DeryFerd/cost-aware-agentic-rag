@@ -1,0 +1,16 @@
+{
+  "name": "cite",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "template": "Extract specific citations from the text that support the given claim.\nFormat each citation as:\n[Source: {source}, Page: {page}] \u2014 \"exact quote from text\"\n\nClaim: {claim}\n\nText: {text}",
+      "metadata": {
+        "author": "system",
+        "description": "Extracts specific citations supporting a claim"
+      },
+      "created_at": "2026-06-17T18:04:58.502536",
+      "updated_at": "2026-06-17T18:04:58.502550"
+    }
+  ],
+  "current_version": "1.0.0"
+}

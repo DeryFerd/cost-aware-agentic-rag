@@ -1,0 +1,16 @@
+{
+  "name": "validate",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "template": "Validate the following answer for a financial query.\nCheck for:\n1. Completeness - does it fully answer the question?\n2. Accuracy - are the numbers and facts correct?\n3. Citations - are sources properly cited?\n4. Clarity - is the answer well-structured?\n\nQuery: {query}\nAnswer: {answer}\n\nRespond with a JSON object:\n{{\"completeness\": 0-10, \"accuracy\": 0-10, \"citations\": 0-10, \"clarity\": 0-10, \"issues\": [\"list of issues\"]}}",
+      "metadata": {
+        "author": "system",
+        "description": "Validates answer quality for completeness, accuracy, citations, clarity"
+      },
+      "created_at": "2026-06-17T18:04:58.503526",
+      "updated_at": "2026-06-17T18:04:58.503541"
+    }
+  ],
+  "current_version": "1.0.0"
+}

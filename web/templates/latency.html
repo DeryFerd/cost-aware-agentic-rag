@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Latency Dashboard - FinRAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-dark-950 text-white min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 glass border-r border-dark-700 flex flex-col">
+        <div class="p-4 border-b border-dark-700">
+            <a href="/" class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <span class="text-xl font-bold gradient-text">FinRAG</span>
+            </a>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="/app" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-comments"></i>
+                <span>Query</span>
+            </a>
+            <a href="/app/documents" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-file-alt"></i>
+                <span>Documents</span>
+            </a>
+            <a href="/app/upload" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>Upload</span>
+            </a>
+            <a href="/app/analytics" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-chart-bar"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="/app/comparison" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-balance-scale"></i>
+                <span>Model Comparison</span>
+            </a>
+            <a href="/app/latency" class="flex items-center space-x-3 px-4 py-3 bg-primary-600/20 text-primary-400 rounded-xl">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Latency</span>
+            </a>
+            <a href="/app/cost-optimization" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-piggy-bank"></i>
+                <span>Cost Optimization</span>
+            </a>
+            <a href="/app/admin" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-shield-alt"></i>
+                <span>Admin</span>
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-dark-700">
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span class="text-sm font-medium">System Status</span>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">API</span>
+                        <span id="apiStatus" class="text-green-400">Connected</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">Last Refresh</span>
+                        <span id="lastRefresh" class="text-white">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">Latency Dashboard</h1>
+                    <p class="text-dark-400 mt-1">Component-level latency percentiles and recent query timings</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-dark-400 text-sm">Auto-refresh: <span id="countdown">30</span>s</span>
+                    <button onclick="loadAll()" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-xl text-sm transition">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Latency Percentile Cards -->
+            <div id="latencyCards" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-bolt text-green-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">p50 Latency</p>
+                            <p id="p50Value" class="text-2xl font-bold">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-clock text-yellow-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">p95 Latency</p>
+                            <p id="p95Value" class="text-2xl font-bold">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-red-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">p99 Latency</p>
+                            <p id="p99Value" class="text-2xl font-bold">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Per-Component Latency Cards -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-microchip text-primary-400 mr-3"></i>
+                    Latency by Component
+                </h2>
+                <div id="componentCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <p class="text-dark-400 text-sm">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Recent Queries Table -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-history text-primary-400 mr-3"></i>
+                    Recent Query Timings
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-dark-400 text-sm border-b border-dark-700">
+                                <th class="pb-3 font-medium">Time</th>
+                                <th class="pb-3 font-medium">Query</th>
+                                <th class="pb-3 font-medium">Total</th>
+                                <th class="pb-3 font-medium">Retrieval</th>
+                                <th class="pb-3 font-medium">Rerank</th>
+                                <th class="pb-3 font-medium">Generation</th>
+                                <th class="pb-3 font-medium">Model</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentTable" class="divide-y divide-dark-700">
+                            <tr><td colspan="7" class="py-8 text-center text-dark-400">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        let refreshInterval;
+        let countdownValue = 30;
+
+        loadAll();
+        startAutoRefresh();
+
+        async function loadAll() {
+            await Promise.all([loadLatencyStats(), loadRecentQueries(), loadStats()]);
+            countdownValue = 30;
+            document.getElementById('countdown').textContent = countdownValue;
+            document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+        }
+
+        async function loadLatencyStats() {
+            try {
+                const data = await fetch(`${API_BASE}/latency/stats`).then(r => r.json());
+
+                // Overall percentiles
+                document.getElementById('p50Value').textContent = data.p50_ms ? data.p50_ms.toFixed(0) + 'ms' : '-';
+                document.getElementById('p95Value').textContent = data.p95_ms ? data.p95_ms.toFixed(0) + 'ms' : '-';
+                document.getElementById('p99Value').textContent = data.p99_ms ? data.p99_ms.toFixed(0) + 'ms' : '-';
+
+                // Per-component cards
+                const container = document.getElementById('componentCards');
+                if (data.components && Object.keys(data.components).length > 0) {
+                    const colorMap = {
+                        retrieval: 'bg-green-500/20 text-green-400',
+                        rerank: 'bg-purple-500/20 text-purple-400',
+                        generation: 'bg-primary-500/20 text-primary-400',
+                        routing: 'bg-yellow-500/20 text-yellow-400',
+                        query_processing: 'bg-cyan-500/20 text-cyan-400',
+                        overall: 'bg-pink-500/20 text-pink-400',
+                    };
+                    const iconMap = {
+                        retrieval: 'fa-search',
+                        rerank: 'fa-sort-amount-down',
+                        generation: 'fa-robot',
+                        routing: 'fa-route',
+                        query_processing: 'fa-cogs',
+                        overall: 'fa-clock',
+                    };
+
+                    container.innerHTML = Object.entries(data.components).map(([name, stats]) => {
+                        const colors = colorMap[name] || 'bg-dark-700 text-dark-300';
+                        const icon = iconMap[name] || 'fa-cog';
+                        const label = name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        return `
+                            <div class="bg-dark-800 rounded-xl p-4">
+                                <div class="flex items-center space-x-3 mb-3">
+                                    <div class="w-10 h-10 ${colors.split(' ')[0]} rounded-xl flex items-center justify-center">
+                                        <i class="fas ${icon} ${colors.split(' ')[1]}"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">${label}</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-dark-400">p50</span>
+                                        <span class="font-medium">${(stats.p50_ms || 0).toFixed(0)}ms</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-dark-400">p95</span>
+                                        <span class="font-medium">${(stats.p95_ms || 0).toFixed(0)}ms</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-dark-400">p99</span>
+                                        <span class="font-medium">${(stats.p99_ms || 0).toFixed(0)}ms</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-dark-400">Samples</span>
+                                        <span class="font-medium">${stats.sample_count || 0}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<p class="text-dark-400 text-sm">No latency data available yet</p>';
+                }
+            } catch (e) {
+                console.error('Failed to load latency stats:', e);
+                document.getElementById('componentCards').innerHTML = '<p class="text-red-400 text-sm">Failed to load latency data</p>';
+            }
+        }
+
+        async function loadRecentQueries() {
+            try {
+                const data = await fetch(`${API_BASE}/latency/recent`).then(r => r.json());
+                const table = document.getElementById('recentTable');
+
+                if (!data.queries || data.queries.length === 0) {
+                    table.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-dark-400">No recent queries</td></tr>';
+                    return;
+                }
+
+                table.innerHTML = data.queries.map(q => {
+                    const totalColor = (q.total_ms || 0) > 10000 ? 'text-red-400' : (q.total_ms || 0) > 5000 ? 'text-yellow-400' : 'text-green-400';
+                    return `
+                        <tr class="hover:bg-dark-800/50">
+                            <td class="py-3 text-dark-400 text-sm">${q.timestamp ? new Date(q.timestamp).toLocaleTimeString() : '-'}</td>
+                            <td class="py-3 text-sm max-w-xs truncate">${escapeHtml(q.query || '-')}</td>
+                            <td class="py-3 font-medium ${totalColor}">${(q.total_ms || 0).toFixed(0)}ms</td>
+                            <td class="py-3 text-sm">${(q.retrieval_ms || 0).toFixed(0)}ms</td>
+                            <td class="py-3 text-sm">${(q.rerank_ms || 0).toFixed(0)}ms</td>
+                            <td class="py-3 text-sm">${(q.generation_ms || 0).toFixed(0)}ms</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-dark-700 rounded text-xs">${q.model_used || '-'}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Failed to load recent queries:', e);
+                document.getElementById('recentTable').innerHTML = '<tr><td colspan="7" class="py-8 text-center text-red-400">Failed to load recent queries</td></tr>';
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const [health] = await Promise.all([
+                    fetch(`${API_BASE}/health`).then(r => r.json()),
+                ]);
+                document.getElementById('apiStatus').textContent = 'Connected';
+                document.getElementById('apiStatus').className = 'text-green-400';
+            } catch {
+                document.getElementById('apiStatus').textContent = 'Disconnected';
+                document.getElementById('apiStatus').className = 'text-red-400';
+            }
+        }
+
+        function startAutoRefresh() {
+            refreshInterval = setInterval(() => {
+                countdownValue--;
+                document.getElementById('countdown').textContent = countdownValue;
+                if (countdownValue <= 0) {
+                    loadAll();
+                }
+            }, 1000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

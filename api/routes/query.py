@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from api.models import QueryRequest, QueryResponse
@@ -13,9 +14,12 @@ from src.agents.graph import LangGraphOrchestrator
 from src.agents.memory import memory
 from src.agents.guardrails import guardrails
 from src.generation.cost_tracker import CostTracker, QueryCostRecord
+from src.generation.structured_output import StructuredOutputParser, QueryAnswer
 from src.ml.routing import CostAwareRouter
 from src.ml.query_processor import QueryProcessor
 from src.database.cache import cache
+from src.database.tenants import get_tenant_manager
+from src.retrieval.tenant_filter import get_tenant_filter
 from src.config import settings
 
 logger = logging.getLogger(__name__)
@@ -36,9 +40,31 @@ Rules:
 
 
 @router.post("/query", response_model=QueryResponse)
-def query(req: QueryRequest) -> QueryResponse:
+def query(
+    req: QueryRequest,
+    x_tenant_id: Annotated[str | None, Header()] = None,
+    tenant_id: Annotated[str | None, Query()] = None,
+) -> QueryResponse:
     if not req.query or not req.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    # Resolve tenant: header takes precedence, then query param
+    resolved_tenant_id = x_tenant_id or tenant_id
+    tenant_manager = get_tenant_manager()
+    tenant = None
+    if resolved_tenant_id:
+        tenant = tenant_manager.get_tenant(resolved_tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        if not tenant.get("is_active", True):
+            raise HTTPException(status_code=403, detail="Tenant account is disabled")
+
+        budget = tenant_manager.check_token_budget(resolved_tenant_id)
+        if not budget["allowed"]:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily token limit reached. Used {budget['used']}/{budget['limit']} tokens today.",
+            )
 
     query_text = req.query.strip()
 
@@ -70,6 +96,10 @@ def query(req: QueryRequest) -> QueryResponse:
     if "add_disclaimer" in output_result.issues:
         answer = guardrails.output.add_disclaimer(answer)
 
+    tokens_used = response.get("tokens_used", 0) or (
+        response.get("total_cost_usd", 0) * 1000
+    )  # rough estimate if tokens not provided
+
     try:
         cost_tracker.record(QueryCostRecord(
             query=query_text,
@@ -82,6 +112,17 @@ def query(req: QueryRequest) -> QueryResponse:
         ))
     except Exception as e:
         logger.warning(f"Cost tracking failed: {e}")
+
+    # Record usage per tenant
+    if resolved_tenant_id:
+        try:
+            tenant_manager.record_usage(
+                resolved_tenant_id,
+                tokens=tokens_used,
+                cost=response["total_cost_usd"],
+            )
+        except Exception as e:
+            logger.warning(f"Usage recording failed: {e}")
 
     result = QueryResponse(
         answer=answer,
@@ -102,10 +143,32 @@ def query(req: QueryRequest) -> QueryResponse:
 
 
 @router.post("/query/stream")
-def query_stream(req: QueryRequest):
+def query_stream(
+    req: QueryRequest,
+    x_tenant_id: Annotated[str | None, Header()] = None,
+    tenant_id: Annotated[str | None, Query()] = None,
+):
     """Stream response token by token for better UX."""
     if not req.query or not req.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    # Resolve tenant
+    resolved_tenant_id = x_tenant_id or tenant_id
+    tenant_manager = get_tenant_manager()
+    tenant = None
+    if resolved_tenant_id:
+        tenant = tenant_manager.get_tenant(resolved_tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        if not tenant.get("is_active", True):
+            raise HTTPException(status_code=403, detail="Tenant account is disabled")
+
+        budget = tenant_manager.check_token_budget(resolved_tenant_id)
+        if not budget["allowed"]:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily token limit reached. Used {budget['used']}/{budget['limit']} tokens today.",
+            )
 
     def generate():
         try:
@@ -140,6 +203,13 @@ def query_stream(req: QueryRequest):
                 if key not in seen_texts or r.score > seen_texts[key].score:
                     seen_texts[key] = r
             unique_results = sorted(seen_texts.values(), key=lambda x: x.score, reverse=True)[:5]
+
+            # Apply tenant filtering
+            if resolved_tenant_id:
+                tenant_filter = get_tenant_filter()
+                unique_results = tenant_filter.filter_results(
+                    unique_results, resolved_tenant_id
+                )
 
             context = _build_context(unique_results, max_chars=2000)
 
@@ -192,6 +262,17 @@ def query_stream(req: QueryRequest):
             }
             yield f"data: {json.dumps(metadata)}\n\n"
 
+            # Record usage per tenant
+            if resolved_tenant_id:
+                try:
+                    tenant_manager.record_usage(
+                        resolved_tenant_id,
+                        tokens=len(full_text),  # rough estimate
+                        cost=routing_result.cost_estimate,
+                    )
+                except Exception as e:
+                    logger.warning(f"Usage recording failed: {e}")
+
             memory.add_message("user", req.query.strip())
             memory.add_message("assistant", full_text)
             yield "data: [DONE]\n\n"
@@ -201,6 +282,66 @@ def query_stream(req: QueryRequest):
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.post("/query/structured")
+def query_structured(
+    req: QueryRequest,
+    x_tenant_id: Annotated[str | None, Header()] = None,
+    tenant_id: Annotated[str | None, Query()] = None,
+):
+    """Query endpoint that returns structured output parsed into a schema."""
+    if not req.query or not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    resolved_tenant_id = x_tenant_id or tenant_id
+    tenant_manager = get_tenant_manager()
+    if resolved_tenant_id:
+        tenant = tenant_manager.get_tenant(resolved_tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        if not tenant.get("is_active", True):
+            raise HTTPException(status_code=403, detail="Tenant account is disabled")
+
+        budget = tenant_manager.check_token_budget(resolved_tenant_id)
+        if not budget["allowed"]:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily token limit reached. Used {budget['used']}/{budget['limit']} tokens today.",
+            )
+
+    query_text = req.query.strip()
+    input_result = guardrails.validate_input(query_text)
+    if not input_result.passed:
+        raise HTTPException(status_code=400, detail=input_result.message)
+    query_text = input_result.sanitized_input or query_text
+
+    try:
+        response = orchestrator.run(query_text)
+    except Exception as e:
+        logger.error(f"Query failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Query processing failed: {e}") from e
+
+    raw_output = response["answer"]
+    parser = StructuredOutputParser()
+    is_valid, parsed = parser.validate(raw_output, QueryAnswer)
+
+    if not is_valid:
+        parsed = parser.repair(raw_output, QueryAnswer)
+
+    if not parsed.get("answer"):
+        parsed["answer"] = raw_output
+
+    return {
+        "structured": parsed,
+        "raw": raw_output,
+        "is_valid": is_valid,
+        "complexity": response["complexity"],
+        "model_used": response["model_used"],
+        "cost_usd": response["total_cost_usd"],
+        "latency_ms": response["total_latency_ms"],
+        "citations": response["citations"],
+    }
 
 
 def _build_context(results: list, max_chars: int = 2000) -> str:

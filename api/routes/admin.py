@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from src.database.admin_auth import (
     authenticate_user,
@@ -15,10 +17,26 @@ from src.database.admin_auth import (
     create_user,
     delete_user,
 )
+from src.database.tenants import get_tenant_manager
 from src.database.cache import cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+# ── Tenant Models ──────────────────────────────────────────────────
+class CreateTenantRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=50)
+    password: str = Field(..., min_length=4)
+    allowed_tickers: list[str] = Field(default_factory=list)
+    daily_token_limit: int = Field(default=100_000, ge=1_000)
+
+
+class UpdateTenantRequest(BaseModel):
+    allowed_tickers: Optional[list[str]] = None
+    daily_token_limit: Optional[int] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None
 
 
 @router.post("/admin/login")
@@ -79,3 +97,75 @@ def clear_cache():
         return {"status": "cleared"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+# ── Tenant Management ──────────────────────────────────────────────
+@router.post("/tenants")
+def create_tenant(req: CreateTenantRequest):
+    """Create a new tenant."""
+    try:
+        mgr = get_tenant_manager()
+        tenant = mgr.create_tenant(
+            username=req.username,
+            password=req.password,
+            allowed_tickers=req.allowed_tickers,
+            daily_token_limit=req.daily_token_limit,
+        )
+        return {"tenant": tenant}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/tenants")
+def list_tenants():
+    """List all tenants."""
+    mgr = get_tenant_manager()
+    return {"tenants": mgr.list_tenants()}
+
+
+@router.get("/tenants/{tenant_id}")
+def get_tenant(tenant_id: str):
+    """Get tenant by ID."""
+    mgr = get_tenant_manager()
+    tenant = mgr.get_tenant(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return {"tenant": tenant}
+
+
+@router.put("/tenants/{tenant_id}")
+def update_tenant(tenant_id: str, req: UpdateTenantRequest):
+    """Update a tenant."""
+    try:
+        mgr = get_tenant_manager()
+        updates = {k: v for k, v in req.model_dump().items() if v is not None}
+        if not updates:
+            raise HTTPException(status_code=400, detail="No updates provided")
+        tenant = mgr.update_tenant(tenant_id, updates)
+        return {"tenant": tenant}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/tenants/{tenant_id}")
+def delete_tenant(tenant_id: str):
+    """Delete a tenant."""
+    mgr = get_tenant_manager()
+    if mgr.delete_tenant(tenant_id):
+        return {"status": "deleted"}
+    raise HTTPException(status_code=404, detail="Tenant not found")
+
+
+@router.get("/tenants/{tenant_id}/usage")
+def get_tenant_usage(
+    tenant_id: str,
+    days: int = Query(default=7, ge=1, le=90),
+):
+    """Get tenant usage statistics."""
+    try:
+        mgr = get_tenant_manager()
+        stats = mgr.get_usage_stats(tenant_id, days=days)
+        budget = mgr.check_token_budget(tenant_id)
+        return {"usage": stats, "budget": budget}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

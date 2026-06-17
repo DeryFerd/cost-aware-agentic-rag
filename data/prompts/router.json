@@ -1,0 +1,16 @@
+{
+  "name": "router",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "template": "Classify this financial query complexity:\n- 'simple': factual lookup, single fact retrieval, definition\n- 'complex': comparison, analysis, multi-step reasoning, implications\n\nQuery: {query}\nReply with one word only: simple or complex",
+      "metadata": {
+        "author": "system",
+        "description": "Classifies query complexity as simple or complex"
+      },
+      "created_at": "2026-06-17T18:04:58.497521",
+      "updated_at": "2026-06-17T18:04:58.497540"
+    }
+  ],
+  "current_version": "1.0.0"
+}

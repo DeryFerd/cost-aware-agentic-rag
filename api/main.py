@@ -116,6 +116,16 @@ def admin_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "admin.html")
 
 
+@app.get("/app/latency", response_class=HTMLResponse)
+def latency_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "latency.html")
+
+
+@app.get("/app/cost-optimization", response_class=HTMLResponse)
+def cost_optimization_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "cost_optimization.html")
+
+
 # ── Health Check ─────────────────────────────────────────────────────
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:

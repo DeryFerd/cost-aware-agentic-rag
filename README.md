@@ -84,12 +84,16 @@ Production-grade Agentic RAG system for SEC 10-K Financial Document Analysis wit
 | Routing Classifier | TF-IDF + LogisticRegression (sklearn) | Complexity classification |
 | Agent Framework | LangGraph with self-reflection loop | Multi-step orchestration |
 | API | FastAPI (30+ endpoints) | REST + SSE streaming |
-| Frontend | Jinja2 HTML (7 pages) served by FastAPI | Web dashboard |
+| Frontend | Jinja2 HTML (9 pages) served by FastAPI | Web dashboard |
 | Auth | bcrypt password hashing (file-based) | Admin access control |
 | Cache | Redis (optional) | Query result + rate-limit caching |
 | Observability | Langfuse | Per-query tracing |
 | Evaluation | Golden set (55+ Q&A), LLM-as-Judge, retrieval metrics, CI gating | Quality assurance |
 | Containerization | Docker Compose (api + redis) | Deployment |
+
+## Archived Frontends
+
+> **Note**: The `frontend-archived/` (Next.js) and `dashboard-archived/` (Streamlit) directories contain previous frontend implementations that are no longer actively maintained. The Jinja2-based web dashboard (`web/templates/`) is the primary and only supported frontend.
 
 ## Features
 
@@ -208,6 +212,8 @@ This starts the API on port `8001` and Redis on port `6379`.
 | `/app/analytics` | Cost analytics |
 | `/app/comparison` | Model comparison |
 | `/app/upload` | Document upload |
+| `/app/latency` | Latency dashboard |
+| `/app/cost-optimization` | Cost optimization |
 | `/app/admin` | Admin panel |
 
 ## Project Structure
@@ -269,16 +275,19 @@ cost-aware-agentic-rag/
 │   └── tasks/
 │       └── celery_app.py    # Celery task queue
 ├── web/
-│   ├── templates/           # Jinja2 HTML (7 pages)
+│   ├── templates/           # Jinja2 HTML (9 pages)
 │   │   ├── index.html       # Landing
 │   │   ├── app.html         # Query dashboard
 │   │   ├── documents.html   # Document browser
 │   │   ├── analytics.html   # Cost analytics
 │   │   ├── comparison.html  # Model comparison
 │   │   ├── upload.html      # Upload page
+│   │   ├── latency.html     # Latency dashboard
+│   │   ├── cost_optimization.html # Cost optimization
 │   │   └── admin.html       # Admin panel
 │   └── static/              # CSS + JS
-├── frontend/                # Next.js frontend (alternative)
+├── frontend-archived/        # Next.js frontend (archived)
+├── dashboard-archived/       # Streamlit dashboard (archived)
 ├── scripts/
 │   ├── ingest.py            # Data ingestion CLI
 │   ├── evaluate.py          # Evaluation runner

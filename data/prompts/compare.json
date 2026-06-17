@@ -1,0 +1,16 @@
+{
+  "name": "compare",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "template": "Compare the following financial metrics across companies/years.\nPresent the comparison in a structured table format.\nHighlight key differences and trends.\n\nRequest: {request}\n\nData:\n{data}",
+      "metadata": {
+        "author": "system",
+        "description": "Compares financial metrics across companies/years"
+      },
+      "created_at": "2026-06-17T18:04:58.501533",
+      "updated_at": "2026-06-17T18:04:58.501547"
+    }
+  ],
+  "current_version": "1.0.0"
+}
