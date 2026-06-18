@@ -9,10 +9,13 @@
 ## Git History (Recent)
 
 ```
-(HEAD) Roast Review V4 fixes - auth, tenant filtering, cost tracking, ruff, eval harness, OTel, load test, audit, compare
-b9e10a5 feat: Phase 3 senior-level - frontend polish, prompt versioning, cost optimization, structured output, multi-tenant
+b648ab2 feat: Roast Review V4 fixes - auth, tenant filtering, cost tracking, ruff, eval harness, OTel, load test, audit, compare
+9f43594 docs: Update PROGRESS.md with complete project status, eval results, and architecture
+b9e10a5 feat: Phase 3 senior-level features - frontend polish, prompt versioning, cost optimization, structured output, multi-tenant
 716d012 docs: Fix judge model to minimax-m3:cloud, fill actual eval scores
-6a97da4 feat: Roast Review V3 fixes - security, architecture, quality, differentiation
+1b96444 docs: Add minimax-m3:cloud to model stack and eval section
+6a97da4 feat: Roast Review V3 fixes - security, architecture, quality, and differentiation
+d0f1e76 docs: Add STRUCTURE.md - complete architecture map
 22fbbf6 feat: Core RAG improvements - Cross-encoder reranker, RRF fusion, Query processing, Semantic chunking, Knowledge graph, Evaluation pipeline
 ```
 
@@ -477,6 +480,33 @@ cost-aware-agentic-rag/
 | Cost optimization | ✅ Done |
 | Structured output | ✅ Done |
 | Multi-tenant | ✅ Done |
+| Auth on admin/tenant routes | ✅ Done |
+| Tenant filtering in orchestrator | ✅ Done |
+| Cost tracking (real) | ✅ Done |
+| ruff check 0 errors | ✅ Done |
+| CI green | ✅ Done |
+| Eval harness (unified) | ✅ Done |
+| Audit logging | ✅ Done |
+| OpenTelemetry tracing | ✅ Done |
+| Load test | ✅ Done |
+| Compare filings | ✅ Done |
+
+---
+
+## Project Stats
+
+| Metric | Value |
+|--------|-------|
+| Python files | 88 |
+| Lines of code | ~14,500 |
+| HTML templates | 9 |
+| Tracked files | 131 |
+| Unit tests | 167 |
+| Integration tests | 70 |
+| **Total tests** | **237** |
+| API endpoints | 45+ |
+| Golden set entries | 20 |
+| Companies covered | 7 (MSFT, AMZN, TSLA, GOOG, META, AAPL, NVDA) |
 
 ---
 
