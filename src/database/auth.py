@@ -9,7 +9,6 @@ To enable auth, add the following to API routes:
 """
 
 from datetime import datetime, timedelta
-from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -35,7 +34,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(hours=24))
     to_encode.update({"exp": expire})
@@ -51,16 +50,16 @@ def create_api_key() -> str:
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
-    except JWTError:
+    except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
-        )
+        ) from e
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
 ) -> User:
     token = credentials.credentials
     payload = decode_token(token)
@@ -83,7 +82,7 @@ async def get_current_user(
 
 
 async def get_current_admin(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # noqa: B008
 ) -> User:
     if current_user.role != "admin":
         raise HTTPException(
@@ -93,7 +92,7 @@ async def get_current_admin(
     return current_user
 
 
-def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
+def authenticate_user(db: Session, email: str, password: str) -> User | None:
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(password, user.hashed_password):
         return None

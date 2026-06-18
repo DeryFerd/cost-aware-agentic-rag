@@ -50,7 +50,7 @@ class SemanticCache:
     def _load(self) -> None:
         if self._cache_path.exists():
             try:
-                with open(self._cache_path, "r", encoding="utf-8") as f:
+                with open(self._cache_path, encoding="utf-8") as f:
                     self._entries = json.load(f)
             except (json.JSONDecodeError, OSError):
                 self._entries = []

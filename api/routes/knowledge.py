@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from fastapi import APIRouter
 
 from src.config import settings
+from src.eval.pipeline import CIGating, EvalPipeline
 from src.knowledge.graph import FinancialKnowledgeGraph
-from src.eval.pipeline import EvalPipeline, CIGating
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -20,10 +21,8 @@ def knowledge_graph_stats():
     kg = FinancialKnowledgeGraph(
         storage_path=settings.data_dir / "knowledge_graph.json"
     )
-    try:
+    with contextlib.suppress(Exception):
         kg.load()
-    except Exception:
-        pass
     return kg.get_stats()
 
 
@@ -33,10 +32,8 @@ def knowledge_entity(entity: str):
     kg = FinancialKnowledgeGraph(
         storage_path=settings.data_dir / "knowledge_graph.json"
     )
-    try:
+    with contextlib.suppress(Exception):
         kg.load()
-    except Exception:
-        pass
     return kg.query_entity(entity)
 
 

@@ -2,8 +2,9 @@
 
 import json
 from pathlib import Path
-from src.ml.evaluation import MLEvaluator, CostOptimizer
-from src.agents.orchestrator import AgenticOrchestrator
+from src.ml.evaluation import MLEvaluator
+from src.ml.routing import CostAwareRouter
+from src.agents.graph import LangGraphOrchestrator
 from src.config import settings
 
 # Extended golden set (50+ queries)
@@ -45,13 +46,9 @@ def run_evaluation():
     print()
 
     # Initialize components
-    orchestrator = AgenticOrchestrator()
+    orchestrator = LangGraphOrchestrator()
     evaluator = MLEvaluator()
-    cost_optimizer = CostOptimizer()
-
-    # Load indices
-    print("[1/5] Loading indices...")
-    orchestrator.retriever.load_indices()
+    router = CostAwareRouter()
 
     # Run evaluation
     print(f"[2/5] Running evaluation on {len(GOLDEN_SET)} queries...")
@@ -101,7 +98,7 @@ def run_evaluation():
     # Model selection analysis
     print("Model Selection Analysis:")
     for result in results[:5]:
-        complexity = cost_optimizer.classify_complexity(result.query)
+        complexity = router.route(result.query).complexity
         print(f"  [{complexity:8}] {result.query[:50]}... → {result.model_used}")
 
     print()

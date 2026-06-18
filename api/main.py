@@ -12,14 +12,23 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from api.models import HealthResponse
+from api.routes.admin import router as admin_router
+from api.routes.analytics import router as analytics_router
+from api.routes.compare import router as compare_router
+from api.routes.documents import router as documents_router
+from api.routes.feedback import router as feedback_router
+from api.routes.knowledge import router as knowledge_router
+from api.routes.query import router as query_router
+from api.routes.upload import router as upload_router
+from src.config import settings
+from src.database.admin_auth import init_admin
+from src.observability.tracing import setup_tracing
+
 # Add project root to path
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
-
-from api.models import HealthResponse
-from src.config import settings
-from src.database.admin_auth import init_admin
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +59,8 @@ templates = Jinja2Templates(directory=str(web_dir / "templates"))
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize admin user and load indices on startup."""
+    """Initialize admin user, tracing, and load indices on startup."""
+    setup_tracing()
     init_admin()
 
     try:
@@ -61,22 +71,23 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"Could not load indices: {e}")
 
+    # FastAPI OTel middleware (if opentelemetry-instrumentation-fastapi is installed)
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        FastAPIInstrumentor.instrument_app(app)
+        logger.info("FastAPI OTel middleware attached")
+    except ImportError:
+        pass
+
 
 # ── Register Routers ────────────────────────────────────────────────
-from api.routes.query import router as query_router
-from api.routes.upload import router as upload_router
-from api.routes.documents import router as documents_router
-from api.routes.feedback import router as feedback_router
-from api.routes.analytics import router as analytics_router
-from api.routes.admin import router as admin_router
-from api.routes.knowledge import router as knowledge_router
-
 app.include_router(query_router)
 app.include_router(upload_router)
 app.include_router(documents_router)
 app.include_router(feedback_router)
 app.include_router(analytics_router)
 app.include_router(admin_router)
+app.include_router(compare_router)
 app.include_router(knowledge_router)
 
 
@@ -136,7 +147,7 @@ def health() -> HealthResponse:
                 if company_dir.is_dir():
                     for year_dir in company_dir.iterdir():
                         if year_dir.is_dir():
-                            for f in year_dir.glob("*.txt"):
+                            for _f in year_dir.glob("*.txt"):
                                 doc_count += 1
 
         from src.retrieval.vector_store import VectorStore

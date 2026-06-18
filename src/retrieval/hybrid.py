@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass
 
 from src.config import settings
-from src.retrieval.vector_store import VectorStore
+from src.observability.tracing import tracer
 from src.retrieval.bm25_index import BM25Index
 from src.retrieval.fusion import reciprocal_rank_fusion
 from src.retrieval.reranker import CrossEncoderReranker
+from src.retrieval.vector_store import VectorStore
+
+try:
+    from opentelemetry import trace as otel_trace
+except ImportError:
+    otel_trace = None
 
 
 @dataclass
@@ -70,71 +77,96 @@ class HybridRetriever:
         use_rrf: bool = True,
     ) -> list[RetrievalResult]:
         """Hybrid retrieval with RRF fusion and cross-encoder reranking."""
-        # Extract filters from query
-        ticker_filter = _extract_ticker_from_query(query) if use_filters else None
-        year_filter = _extract_year_from_query(query) if use_filters else None
+        span_ctx = None
+        if tracer is not None and otel_trace is not None:
+            span_ctx = tracer.start_as_current_span("hybrid_retrieve")
+            span = span_ctx.__enter__()
+            span.set_attribute("query", query[:200])
+            span.set_attribute("top_k", top_k)
+            span.set_attribute("use_filters", use_filters)
+            span.set_attribute("use_rrf", use_rrf)
+            t0 = time.perf_counter()
 
-        # Vector search with filters
-        vector_results = self.vector_store.search(
-            query,
-            top_k=top_k * 3,
-            ticker_filter=ticker_filter,
-            year_filter=year_filter,
-        )
+        try:
+            # Extract filters from query
+            ticker_filter = _extract_ticker_from_query(query) if use_filters else None
+            year_filter = _extract_year_from_query(query) if use_filters else None
 
-        # BM25 search
-        bm25_results = self.bm25_index.search(query, top_k=top_k * 3)
-
-        # Convert to ranked lists for RRF
-        vector_ranked = [(r["text"], r.get("metadata")) for r in vector_results]
-        bm25_ranked = [(r["text"], r.get("metadata")) for r in bm25_results]
-
-        # Fuse using RRF or weighted sum
-        if use_rrf and (vector_ranked or bm25_ranked):
-            fused_results = reciprocal_rank_fusion(
-                ranked_lists=[vector_ranked, bm25_ranked],
-                k=60,
+            # Vector search with filters
+            vector_results = self.vector_store.search(
+                query,
                 top_k=top_k * 3,
+                ticker_filter=ticker_filter,
+                year_filter=year_filter,
             )
-            fused = [
-                RetrievalResult(
-                    text=r.text,
-                    score=r.rrf_score,
-                    rrf_score=r.rrf_score,
-                    metadata=r.metadata,
+
+            # BM25 search
+            bm25_results = self.bm25_index.search(query, top_k=top_k * 3)
+
+            # Convert to ranked lists for RRF
+            vector_ranked = [(r["text"], r.get("metadata")) for r in vector_results]
+            bm25_ranked = [(r["text"], r.get("metadata")) for r in bm25_results]
+
+            # Fuse using RRF or weighted sum
+            if use_rrf and (vector_ranked or bm25_ranked):
+                fused_results = reciprocal_rank_fusion(
+                    ranked_lists=[vector_ranked, bm25_ranked],
+                    k=60,
+                    top_k=top_k * 3,
                 )
-                for r in fused_results
-            ]
-        else:
-            # Fallback: simple weighted fusion
-            fused = self._weighted_fusion(vector_results, bm25_results, top_k * 3)
+                fused = [
+                    RetrievalResult(
+                        text=r.text,
+                        score=r.rrf_score,
+                        rrf_score=r.rrf_score,
+                        metadata=r.metadata,
+                    )
+                    for r in fused_results
+                ]
+            else:
+                # Fallback: simple weighted fusion
+                fused = self._weighted_fusion(vector_results, bm25_results, top_k * 3)
 
-        # Cross-encoder reranking
-        if self.use_cross_encoder and self._reranker and fused:
-            texts = [r.text for r in fused]
-            reranked = self._reranker.rerank(query, texts, top_k=top_k)
+            # Cross-encoder reranking
+            if self.use_cross_encoder and self._reranker and fused:
+                texts = [r.text for r in fused]
+                reranked = self._reranker.rerank(query, texts, top_k=top_k)
 
-            # Update scores with cross-encoder scores
-            text_to_idx = {r.text: i for i, r in enumerate(fused)}
-            results = []
-            for rr in reranked:
-                idx = text_to_idx.get(rr.text)
-                if idx is not None:
-                    orig = fused[idx]
-                    results.append(RetrievalResult(
-                        text=rr.text,
-                        score=rr.score,
-                        vector_score=orig.vector_score,
-                        bm25_score=orig.bm25_score,
-                        rerank_score=rr.score,
-                        rrf_score=orig.rrf_score,
-                        metadata=orig.metadata,
-                    ))
-            return results[:top_k]
-        else:
-            # No reranking, just sort by fused score
-            fused.sort(key=lambda x: x.score, reverse=True)
-            return fused[:top_k]
+                # Update scores with cross-encoder scores
+                text_to_idx = {r.text: i for i, r in enumerate(fused)}
+                results = []
+                for rr in reranked:
+                    idx = text_to_idx.get(rr.text)
+                    if idx is not None:
+                        orig = fused[idx]
+                        results.append(RetrievalResult(
+                            text=rr.text,
+                            score=rr.score,
+                            vector_score=orig.vector_score,
+                            bm25_score=orig.bm25_score,
+                            rerank_score=rr.score,
+                            rrf_score=orig.rrf_score,
+                            metadata=orig.metadata,
+                        ))
+                final = results[:top_k]
+            else:
+                # No reranking, just sort by fused score
+                fused.sort(key=lambda x: x.score, reverse=True)
+                final = fused[:top_k]
+
+            if span_ctx is not None:
+                span.set_attribute("results_count", len(final))
+                span.set_attribute("vector_candidates", len(vector_results))
+                span.set_attribute("bm25_candidates", len(bm25_results))
+                span.set_attribute("reranked", self.use_cross_encoder and bool(fused))
+
+            return final
+
+        finally:
+            if span_ctx is not None:
+                latency_ms = (time.perf_counter() - t0) * 1000
+                span.set_attribute("duration_ms", round(latency_ms, 2))
+                span_ctx.__exit__(None, None, None)
 
     def _weighted_fusion(
         self,

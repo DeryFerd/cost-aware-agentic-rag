@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from src.retrieval.hybrid import RetrievalResult
-from src.retrieval.rbac import DocumentAccessControl, RBACConfig
 from src.database.tenants import get_tenant_manager
+from src.retrieval.hybrid import RetrievalResult
+from src.retrieval.rbac import DocumentAccessControl
 
 
 class TenantFilter:

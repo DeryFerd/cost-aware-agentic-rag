@@ -8,10 +8,9 @@ Provides:
 
 from __future__ import annotations
 
-import re
 import logging
+import re
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class GuardrailResult:
     """Result of guardrail check."""
     passed: bool
     message: str
-    sanitized_input: Optional[str] = None
+    sanitized_input: str | None = None
     issues: list[str] = None
 
     def __post_init__(self):
@@ -272,9 +271,8 @@ class OutputGuardrails:
         issues.extend(self._check_semantic_grounding(answer, context))
 
         # Add disclaimer if needed
-        if issues:
-            if not any("disclaimer" in i for i in issues):
-                issues.append("add_disclaimer")
+        if issues and not any("disclaimer" in i for i in issues):
+            issues.append("add_disclaimer")
 
         passed = len(issues) == 0
         message = "Output validated" if passed else f"Found {len(issues)} issues"

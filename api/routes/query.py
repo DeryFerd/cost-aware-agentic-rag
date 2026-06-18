@@ -11,16 +11,17 @@ from fastapi.responses import StreamingResponse
 
 from api.models import QueryRequest, QueryResponse
 from src.agents.graph import LangGraphOrchestrator
-from src.agents.memory import memory
 from src.agents.guardrails import guardrails
-from src.generation.cost_tracker import CostTracker, QueryCostRecord
-from src.generation.structured_output import StructuredOutputParser, QueryAnswer
-from src.ml.routing import CostAwareRouter
-from src.ml.query_processor import QueryProcessor
+from src.agents.memory import memory
+from src.config import settings
+from src.database.audit import audit
 from src.database.cache import cache
 from src.database.tenants import get_tenant_manager
+from src.generation.cost_tracker import CostTracker, QueryCostRecord
+from src.generation.structured_output import QueryAnswer, StructuredOutputParser
+from src.ml.query_processor import QueryProcessor
+from src.ml.routing import CostAwareRouter
 from src.retrieval.tenant_filter import get_tenant_filter
-from src.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -82,7 +83,7 @@ def query(
         logger.warning(f"Cache check failed: {e}")
 
     try:
-        response = orchestrator.run(query_text)
+        response = orchestrator.run(query_text, tenant_id=resolved_tenant_id or "")
     except Exception as e:
         logger.error(f"Query failed: {e}")
         raise HTTPException(status_code=500, detail=f"Query processing failed: {e}") from e
@@ -96,17 +97,15 @@ def query(
     if "add_disclaimer" in output_result.issues:
         answer = guardrails.output.add_disclaimer(answer)
 
-    tokens_used = response.get("tokens_used", 0) or (
-        response.get("total_cost_usd", 0) * 1000
-    )  # rough estimate if tokens not provided
+    tokens_used = response.get("tokens_in", 0) + response.get("tokens_out", 0)
 
     try:
         cost_tracker.record(QueryCostRecord(
             query=query_text,
             model=response["model_used"],
             complexity=response["complexity"],
-            tokens_in=0,
-            tokens_out=0,
+            tokens_in=response.get("tokens_in", 0),
+            tokens_out=response.get("tokens_out", 0),
             cost_usd=response["total_cost_usd"],
             latency_ms=response["total_latency_ms"],
         ))
@@ -132,6 +131,18 @@ def query(
         latency_ms=response["total_latency_ms"],
         citations=response["citations"],
         steps_count=len(response["steps"]),
+    )
+
+    audit.log_event(
+        actor=resolved_tenant_id or "anonymous",
+        action="query",
+        target=query_text[:200],
+        outcome="success",
+        details={
+            "model": response["model_used"],
+            "complexity": response["complexity"],
+            "cost_usd": response["total_cost_usd"],
+        },
     )
 
     try:
@@ -172,8 +183,8 @@ def query_stream(
 
     def generate():
         try:
-            from src.retrieval.hybrid import HybridRetriever
             from src.generation.llm_client import OllamaClient
+            from src.retrieval.hybrid import HybridRetriever
 
             llm = OllamaClient()
             retriever = HybridRetriever()
@@ -317,7 +328,7 @@ def query_structured(
     query_text = input_result.sanitized_input or query_text
 
     try:
-        response = orchestrator.run(query_text)
+        response = orchestrator.run(query_text, tenant_id=resolved_tenant_id or "")
     except Exception as e:
         logger.error(f"Query failed: {e}")
         raise HTTPException(status_code=500, detail=f"Query processing failed: {e}") from e

@@ -112,7 +112,7 @@ class VectorStore:
             for doc, meta, dist in zip(
                 results["documents"][0],
                 results["metadatas"][0],
-                results["distances"][0],
+                results["distances"][0], strict=False,
             )
         ]
 

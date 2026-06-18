@@ -22,7 +22,7 @@ STOP_WORDS = frozenset({
     "once", "here", "there", "when", "where", "why", "how", "all", "each",
     "every", "both", "few", "more", "most", "other", "some", "such", "no",
     "nor", "not", "only", "own", "same", "so", "than", "too", "very",
-    "just", "because", "but", "and", "about", "it", "its", "this", "that",
+    "just", "because", "but", "about", "it", "its", "this", "that",
     "these", "those", "what", "which", "who", "whom", "i", "me", "my",
     "we", "our", "you", "your", "he", "him", "his", "she", "her", "they",
     "them", "their", "if", "while", "also",

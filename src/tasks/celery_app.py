@@ -38,9 +38,10 @@ app.conf.update(
 def ingest_document(self, file_path: str, ticker: str, year: int):
     """Ingest a document into the vector store."""
     from pathlib import Path
+
     from src.ingestion.parser import chunk_document
-    from src.retrieval.vector_store import VectorStore
     from src.retrieval.bm25_index import BM25Index
+    from src.retrieval.vector_store import VectorStore
 
     logger.info(f"Ingesting {ticker} {year} from {file_path}")
 
@@ -69,7 +70,7 @@ def ingest_document(self, file_path: str, ticker: str, year: int):
 
     except Exception as e:
         logger.error(f"Failed to ingest {ticker} {year}: {e}")
-        raise self.retry(exc=e, countdown=60)
+        raise self.retry(exc=e, countdown=60) from e
 
 
 @app.task(bind=True, name="tasks.batch_query")
@@ -109,10 +110,10 @@ def batch_query(self, queries: list[dict], model: str = "gemma3:4b"):
 @app.task(name="tasks.rebuild_index")
 def rebuild_index():
     """Rebuild the entire search index."""
-    from src.ingestion.parser import parse_all_documents
-    from src.retrieval.vector_store import VectorStore
-    from src.retrieval.bm25_index import BM25Index
     from src.config import settings
+    from src.ingestion.parser import parse_all_documents
+    from src.retrieval.bm25_index import BM25Index
+    from src.retrieval.vector_store import VectorStore
 
     logger.info("Rebuilding search index")
 
@@ -127,7 +128,7 @@ def rebuild_index():
 
     # Rebuild BM25 index
     bm25 = BM25Index()
-    for ticker, chunks in results.items():
+    for _ticker, chunks in results.items():
         bm25.add_documents(chunks)
     bm25.save(settings.indexes_dir / "bm25.pkl")
 

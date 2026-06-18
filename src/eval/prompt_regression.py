@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
-import time
-from pathlib import Path
 from datetime import datetime
 
 from src.config import settings
-from src.generation.prompt_registry import PromptRegistry
-from src.eval.pipeline import EvalPipeline, CIGating, EvalReport
 from src.eval.golden_set import get_golden_set
+from src.eval.pipeline import CIGating, EvalPipeline, EvalReport
+from src.generation.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
 

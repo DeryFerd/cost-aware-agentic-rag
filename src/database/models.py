@@ -12,16 +12,16 @@ Redis for caching. These models will be needed when implementing:
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
+    Boolean,
     Column,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
     Text,
-    Float,
-    Boolean,
-    JSON,
     create_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker

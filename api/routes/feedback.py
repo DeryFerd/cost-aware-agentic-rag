@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter
 
 from api.models import FeedbackRequest, FeedbackStats
-from src.ml.feedback import store_feedback, get_feedback_stats, get_recent_feedback
+from src.ml.feedback import get_feedback_stats, get_recent_feedback, store_feedback
 from src.ml.suggestions import QuerySuggestion
 
 logger = logging.getLogger(__name__)

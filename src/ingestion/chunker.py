@@ -74,10 +74,7 @@ class SemanticChunker:
             parent_chunks = self._create_parent_chunks(section_text, section_name)
 
             for parent_idx, parent_text in enumerate(parent_chunks):
-                if section_name:
-                    parent_id = f"{section_name}_{parent_idx}"
-                else:
-                    parent_id = f"parent_{parent_idx}"
+                parent_id = f"{section_name}_{parent_idx}" if section_name else f"parent_{parent_idx}"
 
                 # Create child chunks (small) from parent
                 child_chunks = self._create_child_chunks(parent_text, parent_id)

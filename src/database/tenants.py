@@ -6,8 +6,7 @@ import json
 import logging
 import secrets
 import uuid
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 
 from src.config import settings
 
@@ -71,7 +70,7 @@ class TenantManager:
         if not self._usage_path.exists():
             return []
         records = []
-        with open(self._usage_path, "r", encoding="utf-8") as f:
+        with open(self._usage_path, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     records.append(json.loads(line))
@@ -116,7 +115,7 @@ class TenantManager:
             "allowed_tickers": [t.upper() for t in allowed_tickers],
             "daily_token_limit": daily_token_limit,
             "is_active": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
         self._tenants[username] = tenant
         self._save()
@@ -209,7 +208,7 @@ class TenantManager:
         if not tenant:
             raise ValueError(f"Tenant not found: {tenant_id}")
 
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         usage = self._load_usage()
 
         used = sum(
@@ -237,13 +236,13 @@ class TenantManager:
             tokens: Number of tokens consumed.
             cost: USD cost of the query.
         """
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         record = {
             "tenant_id": tenant_id,
             "tokens": tokens,
             "cost": cost,
             "date": today,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         self._save_usage_record(record)
         logger.debug(f"Recorded usage for tenant {tenant_id}: {tokens} tokens, ${cost:.6f}")
@@ -258,7 +257,7 @@ class TenantManager:
         if not tenant:
             raise ValueError(f"Tenant not found: {tenant_id}")
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         usage = self._load_usage()
 
         relevant = [

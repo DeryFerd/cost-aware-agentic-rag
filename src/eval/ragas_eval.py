@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -63,14 +63,14 @@ class RAGASEvaluator:
     def _evaluate_with_ragas(self, result: EvalResult) -> EvalResult:
         """Evaluate using RAGAS framework."""
         try:
+            from datasets import Dataset
             from ragas import evaluate
             from ragas.metrics import (
-                faithfulness,
                 answer_relevancy,
                 context_precision,
                 context_recall,
+                faithfulness,
             )
-            from datasets import Dataset
 
             # Prepare data for RAGAS
             data = {

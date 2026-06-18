@@ -38,3 +38,28 @@ Thumbs.db
 langfuse_data/
 src/cost_aware_agentic_rag.egg-info/
 data/*.jsonl
+
+# Testing
+.pytest_cache/
+.pytest_cache_sandbox/
+.pytest_tmp/
+
+# Linting
+.ruff_cache/
+
+# Archived (local only)
+dashboard-archived/
+frontend-archived/
+
+# Local tools
+superpowers (LOCAL, NO NEED TO PUSH)/
+BROWSER-USE (NO NEED TO PUSH).md
+.sisyphus/
+
+# Roast reviews (local only)
+ROAST_REVIEW*.md
+roast_review*.md
+
+# Stale files
+server.log
+"indexes,eval}"

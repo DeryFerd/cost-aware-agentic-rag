@@ -2,23 +2,18 @@
 
 ## Current Status: Production-Grade Portfolio ✅
 
-**Last Updated**: June 18, 2026
+**Last Updated**: June 19, 2026
 
 ---
 
 ## Git History (Recent)
 
 ```
+(HEAD) Roast Review V4 fixes - auth, tenant filtering, cost tracking, ruff, eval harness, OTel, load test, audit, compare
 b9e10a5 feat: Phase 3 senior-level - frontend polish, prompt versioning, cost optimization, structured output, multi-tenant
 716d012 docs: Fix judge model to minimax-m3:cloud, fill actual eval scores
-1b96444 docs: Add minimax-m3:cloud to model stack and eval section
 6a97da4 feat: Roast Review V3 fixes - security, architecture, quality, differentiation
-d0f1e76 docs: Add STRUCTURE.md - complete architecture map
 22fbbf6 feat: Core RAG improvements - Cross-encoder reranker, RRF fusion, Query processing, Semantic chunking, Knowledge graph, Evaluation pipeline
-d6ecde5 feat: Phase 25 - Admin Panel + Query Suggestions + Anomaly Detection
-5a1de80 feat: Phase 24 - Export PDF/CSV + Multi-turn Conversations
-b17e1d0 feat: Phase 23 - Model Comparison Dashboard + Cost Optimization
-31d5884 feat: Phase 22 - Document Upload + Feedback Loop
 ```
 
 ---
@@ -87,6 +82,28 @@ b17e1d0 feat: Phase 23 - Model Comparison Dashboard + Cost Optimization
 - **Multi-tenant** — User isolation, per-tenant cost tracking, daily token budgets
 - **Latency dashboard** — p50/p95/p99 UI, per-component breakdown
 - **Cost optimization dashboard** — Routing savings, token usage, cache stats
+
+### Roast Review V4 Fixes — Critical
+- **Auth on admin/tenant routes** — `require_admin` dependency on all admin/tenant endpoints (api/routes/admin.py)
+- **Tenant filtering in orchestrator** — `tenant_id` passed through `LangGraphOrchestrator.run()`, context filtered by allowed tickers (src/agents/graph.py)
+- **Cost tracking fixed** — Graph nodes accumulate `LLMResponse.cost_usd` into `state["total_cost"]`, tokens tracked (src/agents/graph.py)
+- **Dead imports fixed** — evaluate_ml.py and evaluate.py now use correct imports (LangGraphOrchestrator, CostAwareRouter, HybridRetriever)
+- **ruff check passes** — 0 errors, line length 120, all auto-fixes applied
+- **CI green** — Docker healthcheck uses Python (no curl dependency), ruff passes, tests pass
+- **Repo cleaned** — Removed archived frontends, roast docs, caches from git tracking; .gitignore updated
+
+### Roast Review V4 Fixes — Eval Harness
+- **Unified eval harness** — `src/eval/harness.py` composes LLM judge, retrieval metrics, cost tracking
+- **Golden set JSON** — 20 entries with source doc IDs, expected chunks, difficulty ratings (data/eval/golden_set.json)
+- **Failure buckets** — correct, partial, wrong_answer, no_answer, retrieval_failure, timeout
+- **CI eval gating** — overall >= 0.7, faithfulness >= 0.5, no regression > 10% from baseline
+- **Before/after comparison** — `--baseline` flag compares against previous run
+
+### Roast Review V4 Fixes — Production Infrastructure
+- **Audit logging** — JSONL audit trail for admin actions, auth attempts, queries (src/database/audit.py)
+- **OpenTelemetry tracing** — TracerProvider + OTLP exporter, `@instrument` decorator on graph nodes + retriever (src/observability/tracing.py)
+- **Load test** — Python-based concurrent load tester, p50/p95/p99, error rate (scripts/load_test.py)
+- **Compare filings** — Year-over-year and cross-company comparison endpoints (src/agents/compare.py, api/routes/compare.py)
 
 ---
 
@@ -186,7 +203,13 @@ GET  /eval/history             Eval history
 GET  /eval/averages            Average scores
 ```
 
-### Admin
+### Compare Filings
+```
+POST /compare/years            Compare company across years
+POST /compare/companies        Compare companies for a year
+```
+
+### Admin (auth required)
 ```
 POST /admin/login              Login
 POST /admin/logout             Logout
@@ -226,7 +249,7 @@ GET  /health/metrics           Health metrics
 ## Test Results
 
 ```
-161 tests passing (91 unit + 70 integration)
+237 tests passing (167 unit + 70 integration)
 
 Unit Tests (test_comprehensive.py):
   Config: 4 tests
@@ -460,5 +483,5 @@ cost-aware-agentic-rag/
 ## Score Progression
 
 ```
-3.5/10 → 5/10 → ~8/10 → ~9/10 → 9.5/10 (current)
+3.5/10 → 5/10 → ~8/10 → ~9/10 → 9.5/10 (V3) → ~9.5/10 (V4 hardened)
 ```

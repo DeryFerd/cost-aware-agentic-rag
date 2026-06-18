@@ -8,16 +8,18 @@ import re
 import time
 from typing import Annotated, TypedDict
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.checkpoint.memory import MemorySaver
+from opentelemetry import trace
 
+from src.agents.memory import memory
 from src.config import settings
 from src.generation.llm_client import OllamaClient
-from src.retrieval.hybrid import HybridRetriever
-from src.agents.memory import memory
 from src.multimodal.tables import extract_tables_from_text, format_table_for_context
 from src.observability.langfuse import observability
+from src.observability.tracing import instrument, tracer
+from src.retrieval.hybrid import HybridRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +37,13 @@ class AgentState(TypedDict):
     citations: list[str]
     chunks_used: int
     total_cost: float
+    tokens_in: int
+    tokens_out: int
     steps: list[dict]
     reflection_count: int
     answer: str
     needs_retry: bool
+    tenant_id: str
 
 
 # ── Tool Definitions ──────────────────────────────────────────────
@@ -142,6 +147,7 @@ TOOLS = [
 
 # ── Graph Nodes ───────────────────────────────────────────────────
 
+@instrument("planner_node")
 def planner_node(state: AgentState) -> dict:
     """Plan which tools to use for the query."""
     from src.ml.routing import CostAwareRouter
@@ -194,14 +200,28 @@ Only use tools that are needed."""
     if not tool_calls:
         tool_calls = [{"tool": "search", "args": {"query": query}}]
 
+    # Record span attributes for observability
+    if tracer is not None:
+        span = trace.get_current_span()
+        span.set_attribute("model", model)
+        span.set_attribute("complexity", complexity)
+        span.set_attribute("tokens_in", resp.tokens_in)
+        span.set_attribute("tokens_out", resp.tokens_out)
+        span.set_attribute("cost_usd", resp.cost_usd)
+        span.set_attribute("tools_planned", [t["tool"] for t in tool_calls])
+
     return {
         "complexity": complexity,
         "model": model,
+        "total_cost": state.get("total_cost", 0.0) + resp.cost_usd,
+        "tokens_in": resp.tokens_in,
+        "tokens_out": resp.tokens_out,
         "steps": state.get("steps", []) + [{"action": "plan", "model": model, "tools": [t["tool"] for t in tool_calls]}],
         "messages": [{"role": "assistant", "content": f"Planning to use tools: {[t['tool'] for t in tool_calls]}"}],
     }
 
 
+@instrument("tool_executor_node")
 def tool_executor_node(state: AgentState) -> dict:
     """Execute the planned tools and build context."""
     llm = OllamaClient()
@@ -258,14 +278,32 @@ Use the available tools to gather information."""
     # Build context from tool results
     context = _build_context_from_tools(context_data)
 
+    # Apply tenant filtering if tenant_id is set
+    tenant_id = state.get("tenant_id", "")
+    if tenant_id:
+        context = _apply_tenant_filter(context, tenant_id)
+
+    # Record span attributes for observability
+    if tracer is not None:
+        span = trace.get_current_span()
+        span.set_attribute("model", model)
+        span.set_attribute("tokens_in", resp.tokens_in)
+        span.set_attribute("tokens_out", resp.tokens_out)
+        span.set_attribute("cost_usd", resp.cost_usd)
+        span.set_attribute("tools_used", tools_used)
+
     return {
         "context": context,
         "tools_used": tools_used,
         "steps": steps,
         "chunks_used": sum(1 for v in context_data.values() if isinstance(v, str)),
+        "total_cost": state.get("total_cost", 0.0) + resp.cost_usd,
+        "tokens_in": resp.tokens_in,
+        "tokens_out": resp.tokens_out,
     }
 
 
+@instrument("generator_node")
 def generator_node(state: AgentState) -> dict:
     """Generate answer using context from tools."""
     llm = OllamaClient()
@@ -307,14 +345,27 @@ Rules:
         "tools_used": state.get("tools_used", []),
     })
 
+    # Record span attributes for observability
+    if tracer is not None:
+        span = trace.get_current_span()
+        span.set_attribute("model", model)
+        span.set_attribute("tokens_in", resp.tokens_in)
+        span.set_attribute("tokens_out", resp.tokens_out)
+        span.set_attribute("cost_usd", resp.cost_usd)
+        span.set_attribute("citations_count", len(citations))
+
     return {
         "answer": answer,
         "citations": citations,
         "steps": state.get("steps", []) + [{"action": "respond", "model": model}],
         "messages": [{"role": "assistant", "content": answer}],
+        "total_cost": state.get("total_cost", 0.0) + resp.cost_usd,
+        "tokens_in": resp.tokens_in,
+        "tokens_out": resp.tokens_out,
     }
 
 
+@instrument("reflector_node")
 def reflector_node(state: AgentState) -> dict:
     """Self-reflect on answer quality."""
     llm = OllamaClient()
@@ -346,15 +397,42 @@ Respond with JSON:
         if json_match:
             reflection = json.loads(json_match.group())
             if reflection.get("needs_improvement"):
+                # Record span attributes for observability
+                if tracer is not None:
+                    span = trace.get_current_span()
+                    span.set_attribute("model", settings.ollama_simple_model)
+                    span.set_attribute("tokens_in", resp.tokens_in)
+                    span.set_attribute("tokens_out", resp.tokens_out)
+                    span.set_attribute("cost_usd", resp.cost_usd)
+                    span.set_attribute("needs_retry", True)
+
                 return {
                     "reflection_count": reflection_count + 1,
                     "needs_retry": True,
                     "steps": state.get("steps", []) + [{"action": "reflect", "issues": reflection.get("issues", [])}],
+                    "total_cost": state.get("total_cost", 0.0) + resp.cost_usd,
+                    "tokens_in": resp.tokens_in,
+                    "tokens_out": resp.tokens_out,
                 }
     except json.JSONDecodeError:
         pass
 
-    return {"reflection_count": reflection_count, "needs_retry": False}
+    # Record span attributes for observability
+    if tracer is not None:
+        span = trace.get_current_span()
+        span.set_attribute("model", settings.ollama_simple_model)
+        span.set_attribute("tokens_in", resp.tokens_in)
+        span.set_attribute("tokens_out", resp.tokens_out)
+        span.set_attribute("cost_usd", resp.cost_usd)
+        span.set_attribute("needs_retry", False)
+
+    return {
+        "reflection_count": reflection_count,
+        "needs_retry": False,
+        "total_cost": state.get("total_cost", 0.0) + resp.cost_usd,
+        "tokens_in": resp.tokens_in,
+        "tokens_out": resp.tokens_out,
+    }
 
 
 def should_continue(state: AgentState) -> str:
@@ -379,12 +457,48 @@ def _clean_response(text: str) -> str:
     return text.strip()
 
 
+def _apply_tenant_filter(context: str, tenant_id: str) -> str:
+    """Filter context string by tenant's allowed tickers.
+
+    Parses [TICKER YEAR] markers from context and removes lines
+    belonging to tickers the tenant is not allowed to access.
+    """
+    try:
+        from src.database.tenants import get_tenant_manager
+
+        mgr = get_tenant_manager()
+        tenant = mgr.get_tenant(tenant_id)
+        if not tenant:
+            return ""
+
+        allowed = {t.upper() for t in tenant.get("allowed_tickers", [])}
+        if tenant.get("role") == "admin":
+            return context
+
+        if not allowed:
+            return ""
+
+        filtered_lines = []
+        for line in context.split("\n\n"):
+            ticker_match = re.search(r'\[([A-Z]{2,5})\s+\d{4}\]', line)
+            if ticker_match:
+                ticker = ticker_match.group(1)
+                if ticker in allowed:
+                    filtered_lines.append(line)
+            else:
+                filtered_lines.append(line)
+
+        return "\n\n".join(filtered_lines)
+    except Exception:
+        return context
+
+
 def _build_context_from_tools(context_data: dict) -> str:
     """Build context string from tool results."""
     parts = []
     all_tables = []
 
-    for tool_name, result_str in context_data.items():
+    for _tool_name, result_str in context_data.items():
         try:
             results = json.loads(result_str) if isinstance(result_str, str) else result_str
         except json.JSONDecodeError:
@@ -441,14 +555,13 @@ def _extract_citations(query: str, context: str | dict) -> list[str]:
         for match in re.finditer(pattern, context):
             ticker, year = match.groups()
             key = f"{ticker}_{year}"
-            if key not in seen:
-                if not mentioned or ticker in mentioned:
-                    seen.add(key)
-                    citations.append(f"{ticker} {year}")
+            if key not in seen and (not mentioned or ticker in mentioned):  # noqa: SIM102
+                seen.add(key)
+                citations.append(f"{ticker} {year}")
         return citations[:5]
 
     # Handle dict context (original format)
-    for tool_name, result_str in context.items():
+    for _tool_name, result_str in context.items():
         try:
             results = json.loads(result_str) if isinstance(result_str, str) else result_str
         except json.JSONDecodeError:
@@ -460,10 +573,9 @@ def _extract_citations(query: str, context: str | dict) -> list[str]:
                     ticker = r.get("ticker", "")
                     year = r.get("year", "")
                     key = f"{ticker}_{year}"
-                    if ticker and key not in seen:
-                        if not mentioned or ticker in mentioned:
-                            seen.add(key)
-                            citations.append(f"{ticker} {year}")
+                    if ticker and key not in seen and (not mentioned or ticker in mentioned):
+                        seen.add(key)
+                        citations.append(f"{ticker} {year}")
 
     return citations[:5]
 
@@ -507,7 +619,7 @@ class LangGraphOrchestrator:
     def __init__(self) -> None:
         self.graph = build_graph()
 
-    def run(self, query: str, thread_id: str = "default") -> dict:
+    def run(self, query: str, thread_id: str = "default", tenant_id: str = "") -> dict:
         """Execute the agentic loop using LangGraph."""
         t0 = time.perf_counter()
 
@@ -521,10 +633,13 @@ class LangGraphOrchestrator:
             "citations": [],
             "chunks_used": 0,
             "total_cost": 0.0,
+            "tokens_in": 0,
+            "tokens_out": 0,
             "steps": [],
             "reflection_count": 0,
             "answer": "",
             "needs_retry": False,
+            "tenant_id": tenant_id,
         }
 
         config = {"configurable": {"thread_id": thread_id}}
@@ -538,6 +653,8 @@ class LangGraphOrchestrator:
             "model_used": result.get("model", ""),
             "steps": result.get("steps", []),
             "total_cost_usd": result.get("total_cost", 0.0),
+            "tokens_in": result.get("tokens_in", 0),
+            "tokens_out": result.get("tokens_out", 0),
             "total_latency_ms": total_latency,
             "citations": result.get("citations", []),
             "chunks_used": result.get("chunks_used", 0),

@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, UploadFile
 
 from api.models import UploadResponse, UploadStatus
 from src.ingestion.upload_handler import (
-    validate_upload,
-    save_upload,
-    process_upload,
+    delete_upload,
     get_upload_status,
     list_uploads,
-    delete_upload,
+    process_upload,
+    save_upload,
+    validate_upload,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ router = APIRouter()
 @router.post("/upload", response_model=UploadResponse)
 async def upload_document(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
+    file: UploadFile,
     ticker: str = Form(...),
     year: str = Form(...),
 ):

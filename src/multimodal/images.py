@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ def extract_images_from_pdf(pdf_path: str | Path) -> list[ExtractedImage]:
         return []
 
     try:
-        from docling.document_converter import DocumentConverter, PdfFormatOption
         from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.document_converter import DocumentConverter, PdfFormatOption
 
         pipeline_options = PdfPipelineOptions()
         pipeline_options.do_table_structure = True
@@ -51,7 +51,7 @@ def extract_images_from_pdf(pdf_path: str | Path) -> list[ExtractedImage]:
 
         # Extract images from document
         if hasattr(doc, "pictures"):
-            for i, picture in enumerate(doc.pictures):
+            for _i, picture in enumerate(doc.pictures):
                 if hasattr(picture, "image") and picture.image:
                     images.append(ExtractedImage(
                         image_bytes=picture.image,

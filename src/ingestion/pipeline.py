@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 
 from src.config import settings
-from src.ingestion.downloader import download_sample_dataset, TARGET_COMPANIES
+from src.ingestion.downloader import TARGET_COMPANIES, download_sample_dataset
 from src.ingestion.parser import chunk_document
-from src.retrieval.vector_store import VectorStore
 from src.retrieval.bm25_index import BM25Index
+from src.retrieval.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def run_ingestion(skip_download: bool = False) -> dict:
     bm25_index = BM25Index()
 
     total_chunks = 0
-    for cik, ticker, name in TARGET_COMPANIES:
+    for _cik, ticker, name in TARGET_COMPANIES:
         company_dir = settings.raw_dir / ticker
         if not company_dir.exists():
             logger.warning(f"No data directory for {ticker}, skipping")

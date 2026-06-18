@@ -42,7 +42,7 @@ def _get_filing_accessions(cik: str, form_type: str = "10-K") -> list[dict]:
         accessions = recent.get("accessionNumber", [])
 
         filings = []
-        for form, date, acc in zip(forms, dates, accessions):
+        for form, date, acc in zip(forms, dates, accessions, strict=False):
             if form == form_type:
                 try:
                     year = int(date[:4])

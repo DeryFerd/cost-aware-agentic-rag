@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import difflib
 import json
 import logging
-import difflib
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 from src.config import settings
 

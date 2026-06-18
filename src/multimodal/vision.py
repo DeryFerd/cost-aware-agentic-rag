@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import base64
 import logging
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
-from src.generation.llm_client import OllamaClient
 from src.config import settings
+from src.generation.llm_client import OllamaClient
 
 logger = logging.getLogger(__name__)
 

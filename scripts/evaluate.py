@@ -10,7 +10,8 @@ if str(project_root) not in sys.path:
 
 from src.eval.evaluator import LLMEvaluator
 from src.eval.golden_set import get_golden_set
-from src.agents.orchestrator import AgenticOrchestrator
+from src.agents.graph import LangGraphOrchestrator
+from src.retrieval.hybrid import HybridRetriever
 import json
 
 
@@ -21,8 +22,8 @@ def run_evaluation():
     print("=" * 60)
 
     # Initialize
-    orchestrator = AgenticOrchestrator()
-    orchestrator.retriever.load_indices()
+    orchestrator = LangGraphOrchestrator()
+    retriever = HybridRetriever()
     evaluator = LLMEvaluator()
 
     # Get golden set
@@ -35,16 +36,16 @@ def run_evaluation():
 
         # Run query
         response = orchestrator.run(item["query"])
-        print(f"  Answer: {response.answer[:80]}...")
+        print(f"  Answer: {response['answer'][:80]}...")
 
         # Get contexts from retrieval
-        retrieval_results = orchestrator.retriever.retrieve(item["query"], top_k=3)
+        retrieval_results = retriever.retrieve(item["query"], top_k=3)
         contexts = [r.text for r in retrieval_results]
 
         # Evaluate
         eval_result = evaluator.evaluate(
             query=item["query"],
-            answer=response.answer,
+            answer=response["answer"],
             contexts=contexts,
             query_id=item["id"],
         )
@@ -53,7 +54,7 @@ def run_evaluation():
             "id": item["id"],
             "query": item["query"],
             "expected": item["expected_answer"],
-            "actual": response.answer,
+            "actual": response["answer"],
             "faithfulness": eval_result.faithfulness,
             "relevancy": eval_result.relevancy,
             "completeness": eval_result.completeness,

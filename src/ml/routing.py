@@ -13,7 +13,7 @@ import json
 import logging
 import pickle
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -82,7 +82,7 @@ class QueryClassifier:
     """Trained classifier for query complexity."""
 
     def __init__(self):
-        self.pipeline: Optional[Pipeline] = None
+        self.pipeline: Pipeline | None = None
         self._load_model()
 
     def _load_model(self):
@@ -141,7 +141,7 @@ def _load_training_data() -> list[tuple[str, str]]:
     """Load training data from JSON file with inline fallback."""
     if TRAINING_DATA_PATH.exists():
         try:
-            with open(TRAINING_DATA_PATH, "r", encoding="utf-8") as f:
+            with open(TRAINING_DATA_PATH, encoding="utf-8") as f:
                 data = json.load(f)
             examples = [(ex["query"], ex["complexity"]) for ex in data["examples"]]
             logger.info(f"Loaded {len(examples)} training examples from {TRAINING_DATA_PATH}")
@@ -208,10 +208,10 @@ def train_with_metrics(
         Tuple of (trained classifier, training metrics).
     """
     data = _load_training_data()
-    queries, labels = zip(*data)
+    queries, labels = zip(*data, strict=False)
 
     # Stratified train/test split
-    X_train, X_test, y_train, y_test = train_test_split(
+    x_train, x_test, y_train, y_test = train_test_split(
         list(queries),
         list(labels),
         test_size=test_size,
@@ -233,10 +233,10 @@ def train_with_metrics(
         )),
     ])
 
-    pipeline.fit(X_train, y_train)
+    pipeline.fit(x_train, y_train)
 
     # Predictions on test set
-    y_pred = pipeline.predict(X_test)
+    y_pred = pipeline.predict(x_test)
 
     # Core metrics
     accuracy = accuracy_score(y_test, y_pred)
@@ -285,8 +285,8 @@ def train_with_metrics(
         classification_report=report_str,
         cv_mean=float(cv_scores.mean()),
         cv_std=float(cv_scores.std()),
-        train_size=len(X_train),
-        test_size=len(X_test),
+        train_size=len(x_train),
+        test_size=len(x_test),
     )
 
     # Build classifier with the trained pipeline
@@ -340,7 +340,7 @@ def train_classifier() -> QueryClassifier:
     """Train the query classifier on labeled data (backward-compatible)."""
     classifier = QueryClassifier()
     data = _load_training_data()
-    queries, labels = zip(*data)
+    queries, labels = zip(*data, strict=False)
     classifier.train(list(queries), list(labels))
     return classifier
 

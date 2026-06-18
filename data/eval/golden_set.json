@@ -1,0 +1,222 @@
+[
+  {
+    "id": "factual_001",
+    "query": "What was Microsoft's total revenue in fiscal year 2024?",
+    "expected_answer": "Microsoft reported total revenue of $245.1 billion for fiscal year 2024.",
+    "expected_tickers": ["MSFT"],
+    "expected_years": ["2024"],
+    "category": "factual",
+    "difficulty": "easy",
+    "expected_chunks": ["MSFT 2024 revenue financial data"],
+    "source_docs": ["msft_2024_10k"]
+  },
+  {
+    "id": "factual_002",
+    "query": "How many employees does Amazon have?",
+    "expected_answer": "Amazon had approximately 1,556,000 full-time and part-time employees.",
+    "expected_tickers": ["AMZN"],
+    "expected_years": ["2024"],
+    "category": "factual",
+    "difficulty": "easy",
+    "expected_chunks": ["AMZN 2024 employees headcount"],
+    "source_docs": ["amzn_2024_10k"]
+  },
+  {
+    "id": "factual_003",
+    "query": "What was Tesla's net income in 2024?",
+    "expected_answer": "Tesla reported net income of $7.1 billion for fiscal year 2024.",
+    "expected_tickers": ["TSLA"],
+    "expected_years": ["2024"],
+    "category": "factual",
+    "difficulty": "easy",
+    "expected_chunks": ["TSLA 2024 net income financial data"],
+    "source_docs": ["tsla_2024_10k"]
+  },
+  {
+    "id": "factual_004",
+    "query": "What is Nvidia's gross margin?",
+    "expected_answer": "Nvidia's gross margin was approximately 75% in fiscal year 2024.",
+    "expected_tickers": ["NVDA"],
+    "expected_years": ["2024"],
+    "category": "factual",
+    "difficulty": "medium",
+    "expected_chunks": ["NVDA 2024 gross margin profitability"],
+    "source_docs": ["nvda_2024_10k"]
+  },
+  {
+    "id": "factual_005",
+    "query": "What was Apple's services revenue in fiscal year 2024?",
+    "expected_answer": "Apple's Services segment generated approximately $96.2 billion in revenue in fiscal year 2024.",
+    "expected_tickers": ["AAPL"],
+    "expected_years": ["2024"],
+    "category": "factual",
+    "difficulty": "easy",
+    "expected_chunks": ["AAPL 2024 services revenue segment"],
+    "source_docs": ["aapl_2024_10k"]
+  },
+  {
+    "id": "comparison_001",
+    "query": "Which company had higher revenue in 2024, Microsoft or Amazon?",
+    "expected_answer": "Amazon had higher revenue ($574.0B) than Microsoft ($245.1B) in 2024.",
+    "expected_tickers": ["MSFT", "AMZN"],
+    "expected_years": ["2024"],
+    "category": "comparison",
+    "difficulty": "easy",
+    "expected_chunks": ["MSFT 2024 revenue", "AMZN 2024 revenue"],
+    "source_docs": ["msft_2024_10k", "amzn_2024_10k"]
+  },
+  {
+    "id": "comparison_002",
+    "query": "Compare Tesla and Amazon revenue growth from 2023 to 2024.",
+    "expected_answer": "Tesla revenue grew from $96.8B to $97.7B (0.9% growth). Amazon revenue grew from $554.0B to $574.0B (3.6% growth).",
+    "expected_tickers": ["TSLA", "AMZN"],
+    "expected_years": ["2023", "2024"],
+    "category": "comparison",
+    "difficulty": "medium",
+    "expected_chunks": ["TSLA 2023 revenue", "TSLA 2024 revenue", "AMZN 2023 revenue", "AMZN 2024 revenue"],
+    "source_docs": ["tsla_2023_10k", "tsla_2024_10k", "amzn_2023_10k", "amzn_2024_10k"]
+  },
+  {
+    "id": "comparison_003",
+    "query": "How do Microsoft's and Meta's employee counts compare?",
+    "expected_answer": "Microsoft has significantly more employees (228,000) than Meta (67,317).",
+    "expected_tickers": ["MSFT", "META"],
+    "expected_years": ["2024"],
+    "category": "comparison",
+    "difficulty": "easy",
+    "expected_chunks": ["MSFT 2024 employees", "META 2024 employees"],
+    "source_docs": ["msft_2024_10k", "meta_2024_10k"]
+  },
+  {
+    "id": "comparison_004",
+    "query": "Which had higher revenue in 2024, Nvidia or Tesla?",
+    "expected_answer": "Tesla ($97.7B) had higher revenue than Nvidia ($60.9B) in fiscal year 2024.",
+    "expected_tickers": ["NVDA", "TSLA"],
+    "expected_years": ["2024"],
+    "category": "comparison",
+    "difficulty": "medium",
+    "expected_chunks": ["NVDA 2024 revenue", "TSLA 2024 revenue"],
+    "source_docs": ["nvda_2024_10k", "tsla_2024_10k"]
+  },
+  {
+    "id": "analytical_001",
+    "query": "What was Microsoft's net profit margin in 2024?",
+    "expected_answer": "Microsoft's net profit margin in 2024 was approximately 35.9% ($88.1B net income on $245.1B revenue).",
+    "expected_tickers": ["MSFT"],
+    "expected_years": ["2024"],
+    "category": "analytical",
+    "difficulty": "medium",
+    "expected_chunks": ["MSFT 2024 net income", "MSFT 2024 revenue"],
+    "source_docs": ["msft_2024_10k"]
+  },
+  {
+    "id": "analytical_002",
+    "query": "Is Amazon's profitability improving or declining over the last three years?",
+    "expected_answer": "Amazon's profitability has been improving, with operating income rising from $12.2B (2022) to $68.9B (2024), reflecting significant margin expansion.",
+    "expected_tickers": ["AMZN"],
+    "expected_years": ["2022", "2023", "2024"],
+    "category": "analytical",
+    "difficulty": "hard",
+    "expected_chunks": ["AMZN 2022 operating income", "AMZN 2023 operating income", "AMZN 2024 operating income"],
+    "source_docs": ["amzn_2022_10k", "amzn_2023_10k", "amzn_2024_10k"]
+  },
+  {
+    "id": "analytical_003",
+    "query": "Is Tesla facing margin pressure?",
+    "expected_answer": "Yes, Tesla's gross margin declined from 25.6% in 2022 to approximately 18.2% in 2024 due to price cuts to maintain market share amid increasing EV competition.",
+    "expected_tickers": ["TSLA"],
+    "expected_years": ["2022", "2024"],
+    "category": "analytical",
+    "difficulty": "hard",
+    "expected_chunks": ["TSLA 2022 gross margin", "TSLA 2024 gross margin"],
+    "source_docs": ["tsla_2022_10k", "tsla_2024_10k"]
+  },
+  {
+    "id": "analytical_004",
+    "query": "What does Nvidia's gross margin reveal about its competitive position?",
+    "expected_answer": "Nvidia's gross margin of approximately 75% in 2024 reflects strong pricing power driven by AI chip dominance and limited competition in high-end GPUs.",
+    "expected_tickers": ["NVDA"],
+    "expected_years": ["2024"],
+    "category": "analytical",
+    "difficulty": "hard",
+    "expected_chunks": ["NVDA 2024 gross margin AI chips"],
+    "source_docs": ["nvda_2024_10k"]
+  },
+  {
+    "id": "multi_hop_001",
+    "query": "If you combine Microsoft and Alphabet, how many employees would the merged company have in 2024?",
+    "expected_answer": "Combined employees: 228,000 (Microsoft) + 183,323 (Alphabet) = 411,323 employees.",
+    "expected_tickers": ["MSFT", "GOOG"],
+    "expected_years": ["2024"],
+    "category": "multi_hop",
+    "difficulty": "medium",
+    "expected_chunks": ["MSFT 2024 employees", "GOOG 2024 employees"],
+    "source_docs": ["msft_2024_10k", "goog_2024_10k"]
+  },
+  {
+    "id": "multi_hop_002",
+    "query": "Compare the cloud revenue of AWS and Azure. Which is larger?",
+    "expected_answer": "AWS had approximately $105.2B in revenue while Azure (within Microsoft's Intelligent Cloud) had approximately $105.4B in 2024. The two are very close, with Azure slightly ahead.",
+    "expected_tickers": ["AMZN", "MSFT"],
+    "expected_years": ["2024"],
+    "category": "multi_hop",
+    "difficulty": "hard",
+    "expected_chunks": ["AMZN AWS 2024 revenue", "MSFT Intelligent Cloud 2024 revenue"],
+    "source_docs": ["amzn_2024_10k", "msft_2024_10k"]
+  },
+  {
+    "id": "multi_hop_003",
+    "query": "Which company earns more from advertising, Meta or Alphabet?",
+    "expected_answer": "Alphabet earns more from advertising (~$237.9B in ad revenue in 2024) compared to Meta (~$160.5B).",
+    "expected_tickers": ["META", "GOOG"],
+    "expected_years": ["2024"],
+    "category": "multi_hop",
+    "difficulty": "medium",
+    "expected_chunks": ["META 2024 advertising revenue", "GOOG 2024 advertising revenue"],
+    "source_docs": ["meta_2024_10k", "goog_2024_10k"]
+  },
+  {
+    "id": "multi_hop_004",
+    "query": "How does Nvidia's revenue growth relate to Microsoft's AI spending?",
+    "expected_answer": "Nvidia's revenue surged 114% to $60.9B in FY2024, largely fueled by AI chip demand, while Microsoft's capex jumped to $44.5B for AI infrastructure—much of which went to Nvidia GPUs.",
+    "expected_tickers": ["NVDA", "MSFT"],
+    "expected_years": ["2024"],
+    "category": "multi_hop",
+    "difficulty": "hard",
+    "expected_chunks": ["NVDA 2024 revenue growth", "MSFT 2024 capital expenditure"],
+    "source_docs": ["nvda_2024_10k", "msft_2024_10k"]
+  },
+  {
+    "id": "adversarial_001",
+    "query": "What was XCorp's revenue in 2024?",
+    "expected_answer": "No data available for XCorp. The system only has data for MSFT, AMZN, META, GOOG, TSLA, AAPL, and NVDA.",
+    "expected_tickers": [],
+    "expected_years": ["2024"],
+    "category": "adversarial",
+    "difficulty": "easy",
+    "expected_chunks": [],
+    "source_docs": []
+  },
+  {
+    "id": "adversarial_002",
+    "query": "What was Microsoft's revenue in 2030?",
+    "expected_answer": "No data available for 2030. Available data covers fiscal years 2022-2024.",
+    "expected_tickers": ["MSFT"],
+    "expected_years": ["2030"],
+    "category": "adversarial",
+    "difficulty": "easy",
+    "expected_chunks": [],
+    "source_docs": []
+  },
+  {
+    "id": "adversarial_003",
+    "query": "What is the best company?",
+    "expected_answer": "The query is ambiguous—'best' could mean by revenue, profit, market cap, or growth. Please specify which metric you'd like to compare.",
+    "expected_tickers": [],
+    "expected_years": [],
+    "category": "adversarial",
+    "difficulty": "medium",
+    "expected_chunks": [],
+    "source_docs": []
+  }
+]

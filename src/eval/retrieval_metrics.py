@@ -10,8 +10,8 @@ Implements:
 
 from __future__ import annotations
 
-import math
 import logging
+import math
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)

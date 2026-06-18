@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 
 from src.config import settings
 
@@ -30,7 +30,7 @@ class CostTracker:
 
     def record(self, entry: QueryCostRecord) -> None:
         if not entry.timestamp:
-            entry.timestamp = datetime.now(timezone.utc).isoformat()
+            entry.timestamp = datetime.now(UTC).isoformat()
         self.records.append(entry)
         self._persist(entry)
 

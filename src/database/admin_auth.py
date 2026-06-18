@@ -7,6 +7,8 @@ import logging
 import secrets
 from datetime import datetime, timedelta
 
+from fastapi import Header, HTTPException, status
+
 from src.config import settings
 
 logger = logging.getLogger(__name__)
@@ -93,14 +95,20 @@ def init_admin(username: str | None = None, password: str | None = None) -> None
 
 def authenticate_user(username: str, password: str) -> dict | None:
     """Authenticate user credentials."""
+    from src.database.audit import audit
+
     users = _load_users()
     user = users.get(username)
     if not user:
+        audit.log_event(actor=username, action="auth", target=username, outcome="failure", details={"reason": "user_not_found"})
         return None
     if not _verify_password(password, user["password_hash"]):
+        audit.log_event(actor=username, action="auth", target=username, outcome="failure", details={"reason": "invalid_password"})
         return None
     if not user.get("is_active", True):
+        audit.log_event(actor=username, action="auth", target=username, outcome="failure", details={"reason": "account_disabled"})
         return None
+    audit.log_event(actor=username, action="auth", target=username, outcome="success")
     return {"username": user["username"], "role": user["role"]}
 
 
@@ -178,3 +186,25 @@ def delete_user(username: str) -> bool:
         _save_users(users)
         return True
     return False
+
+
+# ── FastAPI Dependency ────────────────────────────────────────────────
+def require_admin(authorization: str | None = Header(None)) -> dict:
+    """FastAPI dependency that enforces admin auth on protected routes.
+
+    Expects ``Authorization: Bearer <token>`` header.
+    Returns the validated user dict on success.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header",
+        )
+    token = authorization.removeprefix("Bearer ").strip()
+    user = validate_session(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session token",
+        )
+    return user

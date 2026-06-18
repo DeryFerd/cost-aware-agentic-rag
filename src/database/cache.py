@@ -2,7 +2,7 @@
 
 import json
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import redis
 
@@ -18,7 +18,7 @@ class CacheManager:
             decode_responses=True,
         )
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Get value from cache."""
         value = self.redis.get(key)
         if value:
@@ -41,7 +41,7 @@ class CacheManager:
         """Flush all cache."""
         return self.redis.flushdb()
 
-    def get_query_cache(self, query: str, model: str) -> Optional[dict]:
+    def get_query_cache(self, query: str, model: str) -> dict | None:
         """Get cached query result."""
         key = f"query:{model}:{hash(query)}"
         return self.get(key)

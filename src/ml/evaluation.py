@@ -1,9 +1,8 @@
 """ML Evaluation Pipeline."""
 
 import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from dataclasses import dataclass, asdict
-from typing import Optional
 
 from src.config import settings
 
@@ -24,7 +23,7 @@ class EvaluationResult:
     overall_score: float  # 0-1
     tools_used: list[str]
     hallucination_detected: bool
-    feedback: Optional[str] = None
+    feedback: str | None = None
 
 
 class MLEvaluator:
@@ -151,7 +150,7 @@ class MLEvaluator:
             "hallucination_rate": sum(1 for r in self.results if r.hallucination_detected) / len(self.results),
         }
 
-    def save_results(self, path: Optional[Path] = None):
+    def save_results(self, path: Path | None = None):
         """Save evaluation results to JSON."""
         path = path or settings.eval_dir / "evaluation_results.json"
         path.parent.mkdir(parents=True, exist_ok=True)

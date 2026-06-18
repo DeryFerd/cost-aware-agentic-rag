@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TypeVar, Type
+from typing import TypeVar
 
 from pydantic import BaseModel
 
@@ -33,7 +33,7 @@ class ComparisonResult(BaseModel):
 class StructuredOutputParser:
     """Parse and validate LLM output into structured Pydantic models."""
 
-    def parse_raw(self, model_output: str, schema: Type[T]) -> dict:
+    def parse_raw(self, model_output: str, schema: type[T]) -> dict:
         """Parse LLM output into structured format.
 
         Tries JSON extraction first, then regex patterns.
@@ -60,7 +60,7 @@ class StructuredOutputParser:
 
         return {}
 
-    def validate(self, model_output: str, schema: Type[T]) -> tuple[bool, dict]:
+    def validate(self, model_output: str, schema: type[T]) -> tuple[bool, dict]:
         """Validate output matches schema. Returns (is_valid, parsed_data)."""
         parsed = self.parse_raw(model_output, schema)
         if not parsed:
@@ -72,7 +72,7 @@ class StructuredOutputParser:
         except Exception:
             return False, parsed
 
-    def repair(self, model_output: str, schema: Type[T]) -> dict:
+    def repair(self, model_output: str, schema: type[T]) -> dict:
         """Repair malformed output and attempt parsing."""
         repaired = model_output
 
@@ -139,7 +139,7 @@ class StructuredOutputParser:
                         return result
         return None
 
-    def _try_regex_extraction(self, text: str, schema: Type[T]) -> dict | None:
+    def _try_regex_extraction(self, text: str, schema: type[T]) -> dict | None:
         """Extract fields using regex patterns."""
         result: dict = {}
 
@@ -174,7 +174,7 @@ class StructuredOutputParser:
 
         return result if result else None
 
-    def _build_minimal(self, text: str, schema: Type[T]) -> dict:
+    def _build_minimal(self, text: str, schema: type[T]) -> dict:
         """Build a minimal valid dict from available text."""
         result: dict = {}
 
