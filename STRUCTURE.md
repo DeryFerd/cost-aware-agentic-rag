@@ -1,6 +1,6 @@
-# STRUCTURE.md — Arsitektur Final
+# STRUCTURE.md — Architecture Map
 
-> Peta lengkap seluruh sistem: frontend, backend, API, data flow, dan koneksi antar modul.
+> Complete system map: frontend, backend, API, data flow, and module connections.
 
 ---
 
@@ -9,145 +9,173 @@
 ```
 cost-aware-agentic-rag/
 ├── .env                          # Ollama Cloud API key, Redis, Langfuse config
+├── .github/workflows/ci.yml      # CI: lint → test → eval → docker
 ├── Dockerfile                    # Python 3.11-slim, port 8001
-├── docker-compose.yml            # api, frontend, postgres, redis, celery
-├── pyproject.toml                # Project metadata + deps
+├── docker-compose.yml            # api + redis
+├── pyproject.toml                # Project metadata + ruff config
 ├── requirements.txt              # Pinned dependencies
+├── STRUCTURE.md                  # This file
+├── PROGRESS.md                   # Development progress
+├── README.md                     # Project docs with ADRs
 │
 ├── api/
-│   ├── main.py                   # FastAPI app — 30+ endpoints, Jinja2, SSE streaming
-│   └── models.py                 # Pydantic request/response schemas
+│   ├── main.py                   # FastAPI app (thin, router registration)
+│   ├── models.py                 # Pydantic request/response schemas
+│   └── routes/
+│       ├── query.py              #   /query, /query/stream, /query/structured
+│       ├── upload.py             #   /upload CRUD
+│       ├── documents.py          #   /documents, /conversation
+│       ├── feedback.py           #   /feedback, /suggestions
+│       ├── analytics.py          #   /analytics, /cost, /latency, /prompts
+│       ├── admin.py              #   /admin (auth required), /tenants (auth required)
+│       ├── knowledge.py          #   /knowledge, /eval
+│       └── compare.py            #   /compare/years, /compare/companies
 │
 ├── src/
 │   ├── config.py                 # Central Settings (pydantic-settings)
 │   │
-│   ├── agents/                   # 🧠 AGENT ORCHESTRATION
-│   │   ├── graph.py              #   LangGraph StateGraph (classify→retrieve→generate→reflect)
+│   ├── agents/                   # Agent orchestration
+│   │   ├── graph.py              #   LangGraph StateGraph + LangGraphOrchestrator
+│   │   │                         #   (classify→retrieve→generate→reflect, tenant filtering, cost accumulation)
 │   │   ├── memory.py             #   ConversationMemory (per-session, in-memory)
-│   │   └── guardrails.py         #   InputGuardrails + OutputGuardrails
+│   │   ├── guardrails.py         #   InputGuardrails + OutputGuardrails
+│   │   └── compare.py            #   FilingComparator (year-over-year, cross-company)
 │   │
-│   ├── generation/               # 🤖 LLM INFERENCE
+│   ├── generation/               # LLM inference
 │   │   ├── llm_client.py         #   OllamaClient (gemma3:4b, gemma3:27b, minimax-m3:cloud)
-│   │   ├── cost_tracker.py       #   CostTracker (JSONL persistence)
-│   │   └── prompts.py            #   System prompt, router prompt, etc.
+│   │   ├── cost_tracker.py       #   CostTracker (JSONL persistence, per-query cost)
+│   │   ├── prompts.py            #   System/router/summarize/compare/cite/validate prompts
+│   │   ├── prompt_registry.py    #   Versioned prompts (JSON in data/prompts/)
+│   │   └── structured_output.py  #   Pydantic schemas (QueryAnswer, ComparisonResult)
 │   │
-│   ├── retrieval/                # 🔍 RETRIEVAL ENGINE
+│   ├── retrieval/                # Retrieval engine
 │   │   ├── vector_store.py       #   ChromaDB + bge-small-en-v1.5 (384d)
-│   │   ├── bm25_index.py         #   BM25Okapi (pickle persistence)
+│   │   ├── bm25_index.py         #   BM25Okapi (stemming + stopwords)
 │   │   ├── hybrid.py             #   HybridRetriever (vector + BM25 + RRF + cross-encoder)
-│   │   ├── fusion.py             #   RRF algorithm: score = Σ 1/(k + rank_i)
-│   │   └── reranker.py           #   CrossEncoderReranker (ms-marco-MiniLM-L-6-v2)
+│   │   ├── fusion.py             #   RRF algorithm: score = Σ 1/(k + rank_i), k=60
+│   │   ├── reranker.py           #   CrossEncoderReranker (ms-marco-MiniLM-L-6-v2)
+│   │   ├── rbac.py               #   Document-level access control
+│   │   └── tenant_filter.py      #   Tenant-based retrieval filtering
 │   │
-│   ├── ingestion/                # 📄 DOCUMENT INGESTION
+│   ├── ingestion/                # Document ingestion
 │   │   ├── pipeline.py           #   run_ingestion (download→parse→embed→index)
 │   │   ├── downloader.py         #   SEC EDGAR 10-K downloader
 │   │   ├── parser.py             #   Docling-based chunk_document
 │   │   ├── chunker.py            #   SemanticChunker (parent-child, overlap)
-│   │   └── upload_handler.py     #   File upload: validate→save→process
+│   │   ├── upload_handler.py     #   File upload: validate→save→process
+│   │   └── async_pipeline.py     #   Async document processing
 │   │
-│   ├── ml/                       # 📊 ML & ANALYTICS
-│   │   ├── routing.py            #   CostAwareRouter (TF-IDF + LogisticRegression)
+│   ├── ml/                       # ML & analytics
+│   │   ├── routing.py            #   CostAwareRouter (TF-IDF + LogisticRegression, 110 examples)
 │   │   ├── query_processor.py    #   QueryProcessor (rewrite, HyDE, multi-query)
 │   │   ├── feedback.py           #   Feedback storage (JSONL)
 │   │   ├── cost_analytics.py     #   CostAnalytics (model comparison, trends)
+│   │   ├── cost_optimizer.py     #   Token budgets, savings report, cache hits
 │   │   ├── export.py             #   QueryExporter (PDF via fpdf2, CSV)
 │   │   ├── suggestions.py        #   QuerySuggestion (pattern + document-based)
 │   │   ├── anomaly.py            #   AnomalyDetector (cost, latency, routing)
+│   │   ├── latency_tracker.py    #   LatencyTracker (p50/p95/p99 per component)
+│   │   ├── ab_testing.py         #   Model A/B testing (probabilistic routing)
 │   │   └── evaluation.py         #   MLEvaluator (heuristic scoring)
 │   │
-│   ├── eval/                     # 🧪 EVALUATION
-│   │   ├── pipeline.py           #   EvalPipeline (retrieval + generation metrics)
+│   ├── eval/                     # Evaluation
+│   │   ├── pipeline.py           #   EvalPipeline + CIGating + EvalStorage
+│   │   ├── harness.py            #   Unified eval harness (golden set + judge + failure buckets)
 │   │   ├── llm_judge.py          #   LLMJudge (minimax-m3:cloud as judge)
-│   │   ├── golden_set.py         #   55 golden Q&A pairs
+│   │   ├── golden_set.py         #   Golden Q&A pairs (Python module)
 │   │   ├── ragas_eval.py         #   RAGAS evaluator (optional lib)
-│   │   └── retrieval_metrics.py  #   NDCG@10, MRR, Recall@K, Precision@K
+│   │   ├── retrieval_metrics.py  #   NDCG@10, MRR, Recall@K, Precision@K, Hit Rate
+│   │   └── prompt_regression.py  #   Prompt regression testing
 │   │
-│   ├── database/                 # 💾 STORAGE
+│   ├── database/                 # Storage
 │   │   ├── cache.py              #   Redis wrapper (optional)
-│   │   ├── admin_auth.py         #   File-based admin auth (users.json)
-│   │   └── models.py             #   SQLAlchemy models (NOT USED)
+│   │   ├── semantic_cache.py     #   Semantic cache (cosine similarity 0.92)
+│   │   ├── admin_auth.py         #   File-based admin auth (bcrypt, require_admin dependency)
+│   │   ├── tenants.py            #   Multi-tenant management (CRUD, budgets, usage)
+│   │   ├── audit.py              #   Audit logging (JSONL trail for admin/auth/query)
+│   │   └── models.py             #   SQLAlchemy models (DEAD CODE)
 │   │
-│   ├── knowledge/                # 🕸️ KNOWLEDGE GRAPH
-│   │   └── graph.py              #   FinancialKnowledgeGraph (NetworkX)
+│   ├── knowledge/                # Knowledge graph
+│   │   └── graph.py              #   FinancialKnowledgeGraph (NetworkX + SpaCy NER + LLM)
 │   │
-│   ├── multimodal/               # 🖼️ MULTIMODAL
-│   │   ├── activator.py          #   CLIP embeddings + image-text similarity
-│   │   ├── vision.py             #   VisionAnalyzer (gemma3:27b vision)
+│   ├── multimodal/               # Multimodal
+│   │   ├── activator.py          #   CLIP embeddings + Docling table extraction
+│   │   ├── vision.py             #   VisionAnalyzer (gemma3:27b)
 │   │   ├── tables.py             #   Table extraction (regex-based)
-│   │   └── images.py             #   PDF image extraction (Docling)
+│   │   └── images.py             #   PDF image extraction
 │   │
-│   ├── tasks/                    # ⚙️ BACKGROUND TASKS
-│   │   └── celery_app.py         #   Celery tasks (NOT TRIGGERED yet)
+│   ├── tasks/                    # Background tasks
+│   │   └── celery_app.py         #   Celery tasks (DEAD CODE)
 │   │
-│   └── observability/            # 📈 OBSERVABILITY
-│       └── langfuse.py           #   Langfuse wrapper (optional)
+│   └── observability/            # Observability
+│       ├── langfuse.py           #   Langfuse wrapper (flat traces)
+│       └── tracing.py            #   OpenTelemetry (TracerProvider + OTLP + @instrument)
 │
-├── web/templates/                # 🎨 JINJA2 FRONTEND (7 pages)
-│   ├── index.html                #   Landing page
-│   ├── app.html                  #   Main chat interface (SSE streaming)
-│   ├── upload.html               #   File upload (drag-and-drop)
+├── web/templates/                # Jinja2 frontend (9 pages)
+│   ├── index.html                #   Landing page (8-card grid)
+│   ├── app.html                  #   Chat dashboard (SSE streaming)
+│   ├── upload.html               #   Document upload (drag-and-drop)
 │   ├── documents.html            #   Document browser
-│   ├── analytics.html            #   Cost analytics dashboard
-│   ├── comparison.html           #   Model comparison
-│   └── admin.html                #   Admin panel
+│   ├── analytics.html            #   Analytics dashboard
+│   ├── comparison.html           #   Model comparison dashboard
+│   ├── latency.html              #   Latency dashboard (p50/p95/p99)
+│   ├── cost_optimization.html    #   Cost optimization dashboard
+│   └── admin.html                #   Admin panel (auth, users, tenants, cache)
 │
-├── frontend/                     # 🎨 NEXT.JS FRONTEND (Docker, 3 pages)
-│   └── src/app/
-│       ├── page.tsx              #   Chat (hardcodes localhost:8001)
-│       ├── documents/page.tsx    #   Documents
-│       └── analytics/page.tsx    #   Analytics
-│
-├── scripts/                      # 🔧 CLI SCRIPTS
+├── scripts/                      # CLI scripts
 │   ├── ingest.py                 #   Run ingestion
+│   ├── register_prompts.py       #   Register versioned prompts
 │   ├── eval_ragas.py             #   RAGAS evaluation
 │   ├── eval_llm_judge.py         #   LLM-as-judge evaluation
-│   └── create_samples.py         #   Generate sample 10-K files
+│   ├── evaluate.py               #   Evaluation (FIXED: uses LangGraphOrchestrator)
+│   ├── evaluate_ml.py            #   ML evaluation (FIXED: uses CostAwareRouter)
+│   └── load_test.py              #   Load test (concurrent users, p50/p95/p99)
 │
-├── tests/                        # ✅ TESTS
+├── tests/                        # Tests (237 total)
 │   ├── conftest.py               #   Pytest fixtures (mock LLM, Redis)
-│   └── test_comprehensive.py     #   93 tests
+│   ├── test_comprehensive.py     #   167 unit tests
+│   └── test_integration.py       #   70 integration tests
 │
-└── data/                         # 📁 DATA (all file-based)
+└── data/                         # All file-based storage
     ├── raw/{TICKER}/{YEAR}/      #   SEC 10-K raw .txt files
     ├── processed/                #   Parsed chunks
     ├── indexes/
     │   ├── chroma/               #   ChromaDB vector store
     │   └── bm25.pkl              #   BM25 index
-    ├── eval/                     #   Evaluation results JSON
+    ├── eval/
+    │   ├── golden_set.json        #   20 eval entries with source doc IDs
+    │   ├── harness_results.json   #   Eval harness results
+    │   ├── llm_judge_results.json #   LLM-as-judge results
+    │   └── retrieval_metrics.json #   Retrieval metrics
+    ├── prompts/                  #   Versioned prompts (JSON)
+    ├── training/routing_data.json #   110 routing training examples
     ├── feedback/                 #   User feedback (JSONL daily)
     ├── exports/                  #   PDF/CSV exports
     ├── uploads/                  #   Uploaded files
-    ├── admin/users.json          #   Admin credentials (SHA-256)
-    └── queries/                  #   Query history
+    ├── admin/users.json          #   Admin credentials (bcrypt)
+    ├── tenants/                  #   Tenant data
+    ├── audit/audit.jsonl         #   Audit trail
+    ├── metrics/                  #   Latency, A/B test, load test logs
+    └── cost_log.jsonl            #   Per-query cost records
 ```
 
 ---
 
-## 2. Koneksi Antar Modul (Import Graph)
+## 2. Module Connection Graph
 
-### api/main.py → Module apa saja yang dipanggil
+### api/main.py → All routers
 
 ```
 api/main.py
-├── src/config.py                 ← settings (ALL config)
-├── src/agents/graph.py           ← LangGraphOrchestrator
-├── src/agents/memory.py          ← ConversationMemory
-├── src/agents/guardrails.py      ← InputGuardrails, OutputGuardrails
-├── src/generation/cost_tracker.py← CostTracker
-├── src/generation/llm_client.py  ← OllamaClient (di streaming endpoint)
-├── src/retrieval/hybrid.py       ← HybridRetriever
-├── src/ml/routing.py             ← CostAwareRouter
-├── src/ml/query_processor.py     ← QueryProcessor
-├── src/ml/feedback.py            ← store_feedback, get_feedback_stats
-├── src/ml/cost_analytics.py      ← CostAnalytics
-├── src/ml/export.py              ← QueryExporter
-├── src/ml/anomaly.py             ← AnomalyDetector
-├── src/ml/suggestions.py         ← QuerySuggestion
-├── src/database/cache.py         ← CacheManager
-├── src/database/admin_auth.py    ← authenticate_user, create_session
-├── src/knowledge/graph.py        ← FinancialKnowledgeGraph
-├── src/eval/pipeline.py          ← EvalPipeline
-└── src/ingestion/upload_handler.py ← validate_upload, save_upload, process_upload
+├── api/routes/query.py           ← POST /query, /query/stream, /query/structured
+├── api/routes/upload.py          ← POST /upload, GET /uploads
+├── api/routes/documents.py       ← GET /documents, /conversation/*
+├── api/routes/feedback.py        ← POST /feedback, GET /suggestions
+├── api/routes/analytics.py       ← GET /analytics/*, /cost/*, /latency/*, /prompts/*
+├── api/routes/admin.py           ← POST /admin/login, CRUD users/tenants (auth required)
+├── api/routes/knowledge.py       ← GET /knowledge/*, POST /eval/*
+├── api/routes/compare.py         ← POST /compare/years, /compare/companies
+└── src/observability/tracing.py  ← setup_tracing() on startup
 ```
 
 ### src/agents/graph.py → Agent internals
@@ -159,7 +187,9 @@ src/agents/graph.py (LangGraphOrchestrator)
 ├── src/retrieval/hybrid.py       ← HybridRetriever.retrieve()
 ├── src/agents/memory.py          ← ConversationMemory
 ├── src/agents/guardrails.py      ← InputGuardrails, OutputGuardrails
-└── src/ml/routing.py             ← CostAwareRouter
+├── src/ml/routing.py             ← CostAwareRouter
+├── src/database/tenants.py       ← TenantManager (for tenant filtering)
+└── src/observability/tracing.py  ← @instrument decorator on nodes
 ```
 
 ### src/retrieval/hybrid.py → Retrieval stack
@@ -169,7 +199,8 @@ src/retrieval/hybrid.py (HybridRetriever)
 ├── src/retrieval/vector_store.py ← ChromaDB semantic search
 ├── src/retrieval/bm25_index.py   ← BM25Okapi keyword search
 ├── src/retrieval/fusion.py       ← reciprocal_rank_fusion (RRF)
-└── src/retrieval/reranker.py     ← CrossEncoderReranker
+├── src/retrieval/reranker.py     ← CrossEncoderReranker
+└── src/observability/tracing.py  ← @instrument decorator
 ```
 
 ### src/ingestion/ → Document processing pipeline
@@ -182,249 +213,246 @@ src/ingestion/pipeline.py
 └── src/retrieval/bm25_index.py   ← BM25 add_documents + save
 ```
 
+### src/eval/harness.py → Unified eval
+
+```
+src/eval/harness.py
+├── src/eval/llm_judge.py         ← LLMJudge (structured JSON output)
+├── src/eval/retrieval_metrics.py ← NDCG, MRR, Recall, Precision
+├── src/agents/graph.py           ← LangGraphOrchestrator.run()
+├── src/generation/cost_tracker.py← CostTracker (per-query cost)
+└── src/ml/latency_tracker.py     ← LatencyTracker (p50/p95/p99)
+```
+
 ---
 
-## 3. API Endpoints (30+ endpoints)
+## 3. API Endpoints (45+)
 
-### Core Query
+### Core Query (auth optional, tenant optional)
 
-| Method | Path | Handler | Module | Fungsi |
-|--------|------|---------|--------|--------|
-| POST | `/query` | `query()` | LangGraphOrchestrator | Sync query (full graph) |
-| POST | `/query/stream` | `query_stream()` | HybridRetriever, QueryProcessor, OllamaClient | SSE streaming |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/query` | — | Sync query (full pipeline) |
+| POST | `/query/stream` | — | SSE streaming response |
+| POST | `/query/structured` | — | Structured output (Pydantic) |
 
 ### Ingestion & Upload
 
-| Method | Path | Handler | Module | Fungsi |
-|--------|------|---------|--------|--------|
-| POST | `/upload` | `upload_document()` | upload_handler | Upload PDF |
-| GET | `/upload/{doc_id}/status` | `get_upload_status()` | upload_handler | Status upload |
-| DELETE | `/upload/{doc_id}` | `delete_document()` | upload_handler | Hapus dokumen |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/upload` | — | Upload PDF for indexing |
+| GET | `/upload/{doc_id}/status` | — | Check upload status |
+| DELETE | `/upload/{doc_id}` | — | Delete document |
+| GET | `/uploads` | — | List all uploads |
 
-### Documents
+### Documents & Conversation
 
-| Method | Path | Handler | Module | Fungsi |
-|--------|------|---------|--------|--------|
-| GET | `/documents/list` | `list_documents()` | VectorStore, BM25Index | List semua dokumen |
-| GET | `/documents/search` | `search_documents()` | VectorStore | Cari dokumen |
-| GET | `/documents/stats` | `get_document_stats()` | VectorStore, BM25Index | Statistik chunks |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/documents` | — | List indexed documents |
+| GET | `/conversation/history` | — | Chat history |
+| POST | `/conversation/session` | — | Create/switch session |
+| GET | `/conversation/sessions` | — | List sessions |
+| DELETE | `/conversation/session/{id}` | — | Delete session |
 
 ### Feedback & Suggestions
 
-| Method | Path | Handler | Module | Fungsi |
-|--------|------|---------|--------|--------|
-| POST | `/feedback` | `submit_feedback()` | ml/feedback | Simpan feedback |
-| GET | `/feedback/stats` | `get_feedback_stats()` | ml/feedback | Statistik feedback |
-| GET | `/feedback/recent` | `get_recent_feedback()` | ml/feedback | Recent feedback |
-| GET | `/suggestions` | `get_suggestions()` | QuerySuggestion | Query suggestions |
-| GET | `/suggestions/document-based` | `get_document_based_suggestions()` | QuerySuggestion | Doc-based suggestions |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/feedback` | — | Submit feedback |
+| GET | `/feedback/stats` | — | Feedback statistics |
+| GET | `/suggestions` | — | Query suggestions |
+| GET | `/suggestions/related` | — | Related queries |
 
 ### Cost & Analytics
 
-| Method | Path | Handler | Module | Fungsi |
-|--------|------|---------|--------|--------|
-| GET | `/cost/summary` | `get_cost_summary()` | CostTracker | Ringkasan biaya |
-| GET | `/cost/history` | `get_cost_history()` | CostTracker | Riwayat biaya |
-| GET | `/analytics/costs` | `get_cost_analytics()` | CostAnalytics | Analisis biaya |
-| GET | `/analytics/trends` | `get_cost_trends()` | CostAnalytics | Tren biaya harian |
-| GET | `/analytics/model-comparison` | `get_model_comparison()` | CostAnalytics | Perbandingan model |
-| GET | `/analytics/optimization` | `get_optimization_suggestions()` | CostAnalytics | Saran optimasi |
-| GET | `/analytics/breakdown` | `get_cost_breakdown()` | CostAnalytics | Breakdown biaya |
-| GET | `/analytics/anomalies` | `get_anomalies()` | AnomalyDetector | Deteksi anomali |
-| POST | `/analytics/export/csv` | `export_csv()` | QueryExporter | Export CSV |
-| POST | `/analytics/export/pdf` | `export_pdf()` | QueryExporter | Export PDF |
-| GET | `/analytics/retention` | `get_data_retention_info()` | CostAnalytics | Info retensi data |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/cost/summary` | — | Cost summary |
+| GET | `/cost/budget` | — | Budget check |
+| GET | `/cost/savings` | — | Cost savings from routing |
+| GET | `/cost/breakdown` | — | Cost by category/company |
+| GET | `/cost/token-budgets` | — | Token usage by model |
+| GET | `/analytics/models` | — | Model comparison |
+| GET | `/analytics/routing` | — | Routing breakdown |
+| GET | `/analytics/trend` | — | Cost trend |
+| GET | `/analytics/tokens` | — | Token efficiency |
+| GET | `/analytics/anomalies` | — | Anomaly detection |
 
-### Evaluation & Knowledge Graph
+### Latency & Cache
 
-| Method | Path | Handler | Module | Fungsi |
-|--------|------|---------|--------|--------|
-| POST | `/eval/run` | `run_evaluation()` | EvalPipeline | Jalankan evaluasi |
-| GET | `/eval/results` | `get_evaluation_results()` | eval | Hasil evaluasi |
-| GET | `/eval/export` | `export_evaluation()` | eval | Export evaluasi |
-| POST | `/knowledge/graph` | `query_knowledge_graph()` | FinancialKnowledgeGraph | Query knowledge graph |
-| GET | `/knowledge/graph/stats` | `get_knowledge_graph_stats()` | FinancialKnowledgeGraph | Statistik graph |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/latency/stats` | — | p50/p95/p99 per component |
+| GET | `/latency/recent` | — | Recent latency entries |
+| GET | `/latency/trend` | — | Time-bucketed averages |
+| GET | `/cache/stats` | — | Semantic cache hit rates |
 
-### Admin
+### Prompts
 
-| Method | Path | Handler | Module | Fungsi |
-|--------|------|---------|--------|--------|
-| POST | `/admin/login` | `admin_login()` | admin_auth | Login admin |
-| GET | `/admin/system` | `get_system_status()` | VectorStore, BM25Index | Status sistem |
-| GET | `/admin/users` | `list_users()` | admin_auth | List users |
-| POST | `/admin/users` | `create_user()` | admin_auth | Buat user |
-| DELETE | `/admin/users/{username}` | `delete_user()` | admin_auth | Hapus user |
-| GET | `/admin/sessions` | `get_sessions()` | admin_auth | Active sessions |
-| DELETE | `/admin/sessions/{session_id}` | `revoke_session()` | admin_auth | Revoke session |
-| POST | `/admin/clear-cache` | `clear_cache()` | CacheManager | Clear cache |
-| GET | `/admin/cache/stats` | `get_cache_stats()` | CacheManager | Stats cache |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/prompts` | — | List all prompts + versions |
+| GET | `/prompts/{name}` | — | Get prompt details |
+| POST | `/prompts/{name}/rollback` | — | Rollback to version |
+| POST | `/prompts/{name}/regression` | — | Run regression test |
 
-### Other
+### Compare Filings
 
-| Method | Path | Handler | Module | Fungsi |
-|--------|------|---------|--------|--------|
-| GET | `/health` | `health_check()` | VectorStore, BM25Index | Health check |
-| POST | `/compare` | `compare_models()` | OllamaClient | Bandingkan model |
-| POST | `/ingest/run` | `run_ingestion()` | pipeline | Trigger ingestion |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/compare/years` | — | Compare company across years |
+| POST | `/compare/companies` | — | Compare companies for a year |
+
+### Tenants (auth required)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/tenants` | require_admin | Create tenant |
+| GET | `/tenants` | require_admin | List tenants |
+| GET | `/tenants/{id}` | require_admin | Get tenant |
+| PUT | `/tenants/{id}` | require_admin | Update tenant |
+| DELETE | `/tenants/{id}` | require_admin | Delete tenant |
+| GET | `/tenants/{id}/usage` | require_admin | Usage stats |
+
+### Admin (auth required)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/admin/login` | — | Login (returns token) |
+| POST | `/admin/logout` | — | Logout |
+| GET | `/admin/validate` | — | Validate session |
+| GET | `/admin/users` | require_admin | List users |
+| POST | `/admin/users` | require_admin | Create user |
+| DELETE | `/admin/users/{id}` | require_admin | Delete user |
+| POST | `/admin/clear-cache` | require_admin | Clear cache |
+
+### Knowledge Graph & Eval
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/knowledge/stats` | — | Graph statistics |
+| GET | `/knowledge/entity/{id}` | — | Query entity |
+| POST | `/knowledge/extract` | — | Extract from text |
+| POST | `/eval/run` | — | Run evaluation |
+| GET | `/eval/history` | — | Eval history |
+| GET | `/eval/averages` | — | Average scores |
+
+### Health
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/health` | — | System health |
+| GET | `/health/metrics` | — | Health metrics |
 
 ---
 
-## 4. Frontend → API Mapping
+## 4. Frontend
 
-### A. Jinja2 Templates (Server-rendered, 7 pages)
+### Jinja2 Templates (9 pages, server-rendered)
 
-| Halaman | Template | JS AJAX Endpoints |
-|---------|----------|-------------------|
-| Landing | `index.html` | `GET /health` (SSE polling) |
-| **Chat** | `app.html` | `POST /query/stream` (SSE), `GET /suggestions`, `POST /feedback`, `GET /documents/list` |
-| Upload | `upload.html` | `POST /upload`, `GET /upload/{doc_id}/status`, `GET /documents/list` |
-| Documents | `documents.html` | `GET /documents/list`, `GET /documents/stats` |
-| Analytics | `analytics.html` | `GET /analytics/*`, `POST /analytics/export/*` |
-| Comparison | `comparison.html` | `POST /compare`, `GET /comparison` |
-| Admin | `admin.html` | `POST /admin/login`, `GET /admin/*`, `POST /admin/*` |
+| Page | Template | Key Endpoints |
+|------|----------|---------------|
+| Landing | `index.html` | `GET /health` |
+| Chat | `app.html` | `POST /query/stream` (SSE), `GET /suggestions`, `POST /feedback` |
+| Upload | `upload.html` | `POST /upload`, `GET /upload/{doc_id}/status` |
+| Documents | `documents.html` | `GET /documents` |
+| Analytics | `analytics.html` | `GET /analytics/*`, `GET /cost/*` |
+| Comparison | `comparison.html` | `GET /analytics/models` |
+| Latency | `latency.html` | `GET /latency/stats`, `GET /latency/trend` |
+| Cost Optimization | `cost_optimization.html` | `GET /cost/savings`, `GET /cost/token-budgets` |
+| Admin | `admin.html` | `POST /admin/login`, CRUD users/tenants |
 
-### B. Next.js Frontend (Docker, 3 pages only)
-
-| Halaman | File | API Endpoints |
-|---------|------|---------------|
-| Chat | `frontend/src/app/page.tsx` | `POST http://localhost:8001/query/stream` |
-| Documents | `frontend/src/app/documents/page.tsx` | `GET http://127.0.0.1:8001/documents` |
-| Analytics | `frontend/src/app/analytics/page.tsx` | `GET /health`, `GET /cost/summary`, `GET /documents` |
-
-> ⚠️ Next.js frontend **hardcodes** `localhost:8001` — hanya untuk dev/docker.
-
-### C. Streamlit Dashboard (opsional)
-
-| File | API Endpoints |
-|------|---------------|
-| `dashboard/app.py` | `GET http://localhost:8000/health`, `POST /query`, `GET /cost/summary` |
+**Archived**: `frontend-archived/` (Next.js), `dashboard-archived/` (Streamlit) — local only, not in git.
 
 ---
 
 ## 5. Data Flow
 
-### 🔄 Query Flow (Primary)
+### Query Flow (Primary)
 
 ```
-User ketik query
+User sends query
     │
     ▼
 ┌─────────────────────────────┐
-│  api/main.py                │
-│  POST /query/stream         │
+│  api/routes/query.py        │
+│  POST /query                │
+│  1. Validate tenant         │
+│  2. Check budget            │
+│  3. Input guardrails        │
 └─────────┬───────────────────┘
           │
     ┌─────▼──────────────────┐
-    │ InputGuardrails        │ ← PII check, length, sanitization
+    │ LangGraphOrchestrator  │
+    │ (graph.py)             │
     └─────┬──────────────────┘
           │
     ┌─────▼──────────────────┐
-    │ CacheManager (Redis)   │ ← Check cache (optional)
-    └─────┬──────────────────┘
-          │ (miss)
-    ┌─────▼──────────────────┐
-    │ QueryProcessor         │ ← Rewrite, HyDE, multi-query expansion
-    │ (query_processor.py)   │
+    │ 1. planner_node        │ ← CostAwareRouter → model selection
+    │ 2. tool_executor_node  │ ← HybridRetriever (vector+BM25+RRF+reranker)
+    │ 3. generator_node      │ ← OllamaClient.chat() + cost accumulation
+    │ 4. reflector_node      │ ← Self-reflection (bounded loop)
     └─────┬──────────────────┘
           │
     ┌─────▼──────────────────┐
-    │ CostAwareRouter        │ ← TF-IDF classifier → gemma3:4b / gemma3:27b
-    │ (routing.py)           │
-    └─────┬──────────────────┘
-          │
-    ┌─────▼──────────────────┐
-    │ HybridRetriever        │
-    │   ├─ VectorStore       │ ← ChromaDB semantic search (bge-small-en-v1.5)
-    │   ├─ BM25Index         │ ← BM25Okapi keyword search
-    │   ├─ RRF Fusion        │ ← score = Σ 1/(k + rank_i), k=60
-    │   └─ CrossEncoder      │ ← ms-marco-MiniLM-L-6-v2 reranking
-    └─────┬──────────────────┘
-          │
-    ┌─────▼──────────────────┐
-    │ OllamaClient           │ ← LLM generation (gemma3:4b/27b)
-    │ chat_stream()          │
-    └─────┬──────────────────┘
-          │
-    ┌─────▼──────────────────┐
-    │ OutputGuardrails       │ ← Grounding check, hallucination detect
-    └─────┬──────────────────┘
-          │
-    ┌─────▼──────────────────┐
+    │ Tenant filtering       │ ← Filter by allowed tickers
+    │ Output guardrails      │ ← Grounding check, cross-ref validation
     │ CostTracker            │ ← Log cost, latency, tokens
+    │ AuditLogger            │ ← Log query event
     └─────┬──────────────────┘
           │
     ▼
- SSE stream → Frontend
+  Response → Frontend
 ```
 
-### 📥 Ingestion Flow
+### Ingestion Flow
 
 ```
-POST /ingest/run  atau  scripts/ingest.py
+POST /upload  or  scripts/ingest.py
     │
     ▼
 ┌─────────────────────┐
-│ downloader.py       │ ← SEC EDGAR API → data/raw/{TICKER}/{YEAR}/*.txt
+│ download/validate   │ ← SEC EDGAR API or file upload
 └─────┬───────────────┘
       │
 ┌─────▼───────────────┐
 │ parser.py           │ ← Docling parse → chunks with metadata
-│ (chunk_document)    │
 └─────┬───────────────┘
       │
 ┌─────▼───────────────┐
-│ VectorStore         │ ← ChromaDB add_documents (embed + index)
-│ (vector_store.py)   │   → data/indexes/chroma/
+│ chunker.py          │ ← SemanticChunker (parent-child, overlap)
 └─────┬───────────────┘
       │
 ┌─────▼───────────────┐
-│ BM25Index           │ ← BM25 add_documents + save
-│ (bm25_index.py)     │   → data/indexes/bm25.pkl
+│ VectorStore + BM25  │ ← ChromaDB + BM25 index
 └─────────────────────┘
 ```
 
-### 📤 Upload Flow
+### Eval Flow
 
 ```
-User upload PDF (drag-and-drop)
+python -m src.eval.harness
     │
     ▼
 ┌─────────────────────┐
-│ validate_upload()   │ ← Check file type, size (max 100MB)
+│ Load golden set     │ ← data/eval/golden_set.json (20 entries)
 └─────┬───────────────┘
       │
 ┌─────▼───────────────┐
-│ save_upload()       │ ← Save ke data/uploads/
+│ Run each query      │ ← LangGraphOrchestrator.run()
+│ Track cost + latency│
 └─────┬───────────────┘
       │
 ┌─────▼───────────────┐
-│ process_upload()    │ ← chunk_document → VectorStore → BM25Index
-└─────────────────────┘
-```
-
-### 🧪 Evaluation Flow
-
-```
-scripts/eval_ragas.py
-scripts/eval_llm_judge.py
-POST /eval/run
-    │
-    ▼
-┌─────────────────────┐
-│ LangGraphOrchestrator│ ← Jalankan query
+│ LLM Judge           │ ← minimax-m3:cloud (structured JSON)
+│ Retrieval metrics   │ ← NDCG, MRR, Recall, Precision
 └─────┬───────────────┘
       │
 ┌─────▼───────────────┐
-│ EvalPipeline        │ ← Hitung metrics:
-│ (eval/pipeline.py)  │   - retrieval_precision
-│                     │   - retrieval_recall
-│                     │   - context_relevance
-│                     │   - answer_faithfulness
-│                     │   - answer_relevance
-└─────┬───────────────┘
-      │
-┌─────▼───────────────┐
-│ CIGating            │ ← Pass/fail threshold check
+│ Failure buckets     │ ← correct/partial/wrong_answer/no_answer/timeout
+│ CI gating           │ ← overall>=0.7, faithfulness>=0.5
+│ Baseline comparison │ ← --baseline flag
 └─────────────────────┘
 ```
 
@@ -432,119 +460,67 @@ POST /eval/run
 
 ## 6. External Services
 
-| Service | Config | Digunakan Oleh |
-|---------|--------|----------------|
+| Service | Config | Used By |
+|---------|--------|---------|
 | **Ollama Cloud** | `OLLAMA_BASE_URL`, `OLLAMA_API_KEY` | LLMClient — gemma3:4b, gemma3:27b, minimax-m3:cloud |
 | **SEC EDGAR** | Hardcoded URLs | downloader.py — fetch 10-K filings |
-| **Redis** | `REDIS_URL` (optional) | CacheManager — query cache, rate limiting |
-| **PostgreSQL** | `DATABASE_URL` (optional) | SQLAlchemy models — **TIDAK DIPAKAI** |
-| **Langfuse** | `LANGFUSE_*` (optional) | Observability — tracing, eval |
+| **Redis** | `REDIS_URL` (optional) | CacheManager — query cache |
+| **Langfuse** | `LANGFUSE_*` (optional) | Observability — flat traces |
+| **OpenTelemetry** | `OTEL_EXPORTER_OTLP_ENDPOINT` (optional) | Tracing — distributed spans |
 
 ---
 
 ## 7. Model Stack
 
-| Model | Ukuran | Lokasi | Fungsi |
-|-------|--------|--------|--------|
+| Model | Size | Location | Function |
+|-------|------|----------|----------|
 | `BAAI/bge-small-en-v1.5` | 384d | Local | Embeddings (ChromaDB) |
 | `cross-encoder/ms-marco-MiniLM-L-6-v2` | 22M | Local | Reranking retrieval results |
 | `gemma3:4b` | 4B | Ollama Cloud | Simple queries (cost: $0.075/1M tokens) |
 | `gemma3:27b` | 27B | Ollama Cloud | Complex queries + vision (cost: $0.30/1M tokens) |
 | `minimax-m3:cloud` | Large | Ollama Cloud | LLM-as-Judge evaluation |
-| `TF-IDF + LogisticRegression` | - | Local (sklearn) | Query complexity classification |
+| `TF-IDF + LogisticRegression` | — | Local (sklearn) | Query complexity classification (110 training examples) |
 
 ---
 
-## 8. Arsitektur Visual
+## 8. Security Model
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                        FRONTEND                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │  Jinja2 UI   │  │  Next.js UI  │  │  Streamlit   │       │
-│  │  (7 pages)   │  │  (3 pages)   │  │  (1 page)    │       │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │
-└─────────┼─────────────────┼─────────────────┼────────────────┘
-          │ SSE/JSON        │ HTTP            │ HTTP
-          ▼                 ▼                 ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     API LAYER (FastAPI)                        │
-│                    api/main.py (port 8001)                    │
-│                                                              │
-│  ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────────┐  │
-│  │ /query  │ │ /upload  │ │ /admin   │ │ /analytics/*    │  │
-│  │ /stream │ │ /docs    │ │ /users   │ │ /feedback/*     │  │
-│  └────┬────┘ └────┬─────┘ └────┬─────┘ │ /eval/*         │  │
-└───────┼───────────┼────────────┼────────┼─────────────────┘
-        │           │            │        │
-┌───────▼───────────▼────────────▼────────▼─────────────────┐
-│                    BACKEND MODULES                           │
-│                                                             │
-│  ┌─────────────────┐  ┌─────────────────┐                  │
-│  │  agents/         │  │  retrieval/      │                  │
-│  │  graph.py        │  │  hybrid.py       │                  │
-│  │  memory.py       │  │  vector_store.py │                  │
-│  │  guardrails.py   │  │  bm25_index.py   │                  │
-│  └────────┬────────┘  │  fusion.py       │                  │
-│           │            │  reranker.py     │                  │
-│           │            └────────┬────────┘                  │
-│           │                     │                            │
-│  ┌────────▼─────────────────────▼────────┐                  │
-│  │           generation/                  │                  │
-│  │  llm_client.py (OllamaCloud)          │                  │
-│  │  cost_tracker.py (JSONL)              │                  │
-│  └───────────────────────────────────────┘                  │
-│                                                             │
-│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌────────────┐  │
-│  │  ml/       │ │  eval/     │ │  ingest/   │ │ knowledge/ │  │
-│  │  routing   │ │  pipeline  │ │  parser    │ │ graph.py   │  │
-│  │  query_proc│ │  llm_judge │ │  chunker   │ └────────────┘  │
-│  │  feedback  │ │  ragas     │ │  upload    │                 │
-│  │  analytics │ │  retrieval │ │  download  │ ┌────────────┐  │
-│  │  export    │ │  golden_set│ └───────────┘ │multimodal/  │  │
-│  │  anomaly   │ └───────────┘               │ activator   │  │
-│  │  suggest   │                             │ vision      │  │
-│  └───────────┘                             └────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-          │                                    │
-┌─────────▼────────────────────────────────────▼──────────┐
-│                    STORAGE (File-based)                   │
-│                                                          │
-│  data/raw/{TICKER}/{YEAR}/     ← SEC 10-K .txt files   │
-│  data/indexes/chroma/          ← Vector embeddings      │
-│  data/indexes/bm25.pkl         ← BM25 inverted index    │
-│  data/feedback/*.jsonl         ← User feedback          │
-│  data/exports/                 ← PDF/CSV exports        │
-│  data/uploads/                 ← Uploaded PDFs          │
-│  data/admin/users.json         ← Admin credentials      │
-│  data/eval/*.json              ← Evaluation results     │
-│                                                          │
-│  Redis (optional)              ← Query cache            │
-│  PostgreSQL (NOT USED)         ← —                      │
-└──────────────────────────────────────────────────────────┘
-```
+| Layer | Implementation |
+|-------|---------------|
+| **Admin auth** | bcrypt passwords, `require_admin` dependency on admin/tenant routes |
+| **Tenant isolation** | `tenant_id` in orchestrator, context filtered by allowed tickers |
+| **Input guardrails** | PII detection, prompt injection, length limits |
+| **Output guardrails** | Cross-reference amount check, semantic grounding |
+| **RBAC** | Document-level access control (src/retrieval/rbac.py) |
+| **Semantic cache** | Cosine similarity 0.92 threshold |
+| **CORS** | Whitelist localhost:8001 and localhost:3000 |
+| **Audit logging** | JSONL trail for admin actions, auth attempts, queries |
 
 ---
 
-## 9. Catatan Penting
+## 9. Key Architecture Decisions
 
-### Dual Frontend
-- **Jinja2** (7 halaman): Full fitur — Chat, Upload, Documents, Analytics, Comparison, Admin, Landing
-- **Next.js** (3 halaman): Hanya Chat, Documents, Analytics — hardcoded `localhost:8001`
-- **Streamlit** (1 halaman): Dashboard sederhana
+| Decision | Rationale |
+|----------|-----------|
+| **LangGraph over while-loop** | Proper state machine, not ad-hoc loop |
+| **bge-small-en-v1.5 over nomic-embed-text** | nomic caused segfault on Windows |
+| **RRF over weighted-sum fusion** | More robust to scale differences between retrievers |
+| **Trained classifier over keyword matching** | 110 labeled examples, F1 metrics, confusion matrix |
+| **Cross-encoder for reranking** | +15-30% retrieval improvement over vanilla BM25+vector |
+| **Parent-child chunking** | Small for retrieval precision, large for LLM context |
+| **NetworkX for knowledge graph** | Lightweight, no external DB |
+| **bcrypt over SHA-256** | Production-grade password hashing |
+| **No auto-create admin** | Security — credentials via env vars only |
+| **ONE frontend (Jinja2)** | Stop indecision, archived Next.js + Streamlit |
+| **Python-based Docker healthcheck** | No curl dependency in slim image |
+| **Eval harness with failure buckets** | Actionable diagnostics, not just scores |
+| **OpenTelemetry + Langfuse** | Dual observability (OTel for vendor-neutral, Langfuse for UI) |
 
-### File-based Persistence
-Semua data disimpan di file (JSONL, pickle, JSON, txt). Tidak ada dependency ke database. Redis optional.
+---
 
-### Cost-Aware Routing
-Classifier sklearn (TF-IDF + LogisticRegression) menentukan query sederhana vs kompleks:
-- **Sederhana** → gemma3:4b (murah, cepat)
-- **Kompleks** → gemma3:27b (mahal, lebih baik + vision)
+## 10. Dead Code
 
-### LangGraph State Graph
-4 node: `classify → retrieve → generate → reflect`. Reflect bisa loop balik ke retrieve jika kualitas rendah (bounded).
-
-### Dead Code
-- `src/database/models.py` — SQLAlchemy models, tidak dipakai
-- `src/tasks/celery_app.py` — Celery tasks, belum di-trigger
-- `scripts/evaluate.py`, `scripts/evaluate_ml.py` — Import `AgenticOrchestrator` (stale, class asli = `LangGraphOrchestrator`)
+| File | Reason |
+|------|--------|
+| `src/database/models.py` | SQLAlchemy models, not used (file-based storage) |
+| `src/tasks/celery_app.py` | Celery tasks, never triggered |
