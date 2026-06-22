@@ -1,22 +1,24 @@
 # Cost-Aware Agentic RAG - Progress
 
-## Current Status: Production-Grade Portfolio ✅
+## Current Status: Production-Shaped Prototype ✅
 
-**Last Updated**: June 19, 2026
+**Last Updated**: June 22, 2026
 
 ---
 
 ## Git History (Recent)
 
 ```
+4340b0d feat: Roast Review V5 Phase 2+3 - cost-quality report, eval DB, trace IDs, failure analysis, deployment guide
+40467c7 feat: Roast Review V5 Phase 1 - credibility leaks fixed
+7268d1e docs: Rewrite STRUCTURE.md - complete architecture map with V4 changes
+416ec05 docs: Update PROGRESS.md with V4 fixes, project stats, and test counts
 b648ab2 feat: Roast Review V4 fixes - auth, tenant filtering, cost tracking, ruff, eval harness, OTel, load test, audit, compare
 9f43594 docs: Update PROGRESS.md with complete project status, eval results, and architecture
 b9e10a5 feat: Phase 3 senior-level features - frontend polish, prompt versioning, cost optimization, structured output, multi-tenant
 716d012 docs: Fix judge model to minimax-m3:cloud, fill actual eval scores
 1b96444 docs: Add minimax-m3:cloud to model stack and eval section
 6a97da4 feat: Roast Review V3 fixes - security, architecture, quality, and differentiation
-d0f1e76 docs: Add STRUCTURE.md - complete architecture map
-22fbbf6 feat: Core RAG improvements - Cross-encoder reranker, RRF fusion, Query processing, Semantic chunking, Knowledge graph, Evaluation pipeline
 ```
 
 ---
@@ -108,9 +110,30 @@ d0f1e76 docs: Add STRUCTURE.md - complete architecture map
 - **Load test** — Python-based concurrent load tester, p50/p95/p99, error rate (scripts/load_test.py)
 - **Compare filings** — Year-over-year and cross-company comparison endpoints (src/agents/compare.py, api/routes/compare.py)
 
+### Roast Review V5 Phase 1 — Credibility Leaks
+- **Rebranded** — "production-grade" → "production-shaped prototype" (README, FastAPI description)
+- **.gitignore fixed** — Removed invalid `"indexes,eval}"` glob, added `.mypy_cache/`
+- **ruff on tests** — `ruff check src api tests` passes (E402 ignored for tests/scripts via per-file-ignores)
+- **API startup fast** — Removed index loading from startup event (deferred to first query)
+- **Health check safe** — VectorStore instantiation wrapped in try/except, no crash on missing indices
+- **Docker fail-fast** — `SECRET_KEY=${SECRET_KEY:?...}` instead of default `change-me`
+- **Known Limits** — Added 7 honest limitations to README
+
+### Roast Review V5 Phase 2 — Differentiator
+- **Cost-quality comparison** — `scripts/cost_quality_report.py` compares 5 routing strategies (cheap/expensive/classifier/LLM fallback/hybrid)
+- **Metrics tracked** — cost, latency p50/p95, faithfulness, relevancy, failures, model distribution by category
+
+### Roast Review V5 Phase 3 — Senior Signal
+- **SQLite eval persistence** — `src/eval/db.py` stores eval runs + results in `data/eval/eval_runs.db`
+- **Trace IDs** — `api/middleware.py` adds `X-Trace-ID` header to all responses
+- **Failure analysis** — `api/routes/failure_analysis.py` + `web/templates/failures.html` with charts + trends
+- **CI eval regression gate** — 10% score drop, 1.5x latency, 2x cost triggers failure
+- **Deployment guide** — `DEPLOY.md` with env vars, quick start, Docker, validation
+- **Env validation** — `scripts/validate_env.py` checks vars, Ollama, Redis, data dirs
+
 ---
 
-## API Endpoints (40+)
+## API Endpoints (50+)
 
 ### Core Query
 ```
@@ -229,9 +252,15 @@ GET  /health                   System health
 GET  /health/metrics           Health metrics
 ```
 
+### Failure Analysis
+```
+GET  /failures                 Failure analysis from latest eval
+GET  /failures/trends          Failure trends across runs
+```
+
 ---
 
-## Frontend Pages (9)
+## Frontend Pages (10)
 
 ```
 / (Dashboard)         Chat with streaming + feedback + suggestions
@@ -241,6 +270,7 @@ GET  /health/metrics           Health metrics
 /app/comparison       Model comparison dashboard
 /app/latency          Latency dashboard (p50/p95/p99)
 /app/cost-optimization  Cost optimization dashboard
+/app/failures         Failure analysis dashboard
 /app/admin            Admin panel (auth, users, tenants, cache)
 /                     Landing page with quick links
 ```
@@ -497,14 +527,14 @@ cost-aware-agentic-rag/
 
 | Metric | Value |
 |--------|-------|
-| Python files | 88 |
-| Lines of code | ~14,500 |
-| HTML templates | 9 |
-| Tracked files | 131 |
+| Python files | 99 |
+| Lines of code | ~17,000 |
+| HTML templates | 10 |
+| Tracked files | 139 |
 | Unit tests | 167 |
 | Integration tests | 70 |
 | **Total tests** | **237** |
-| API endpoints | 45+ |
+| API endpoints | 50+ |
 | Golden set entries | 20 |
 | Companies covered | 7 (MSFT, AMZN, TSLA, GOOG, META, AAPL, NVDA) |
 
@@ -513,5 +543,5 @@ cost-aware-agentic-rag/
 ## Score Progression
 
 ```
-3.5/10 → 5/10 → ~8/10 → ~9/10 → 9.5/10 (V3) → ~9.5/10 (V4 hardened)
+3.5/10 → 5/10 → ~8/10 → ~9/10 → 9.5/10 (V3) → ~9.5/10 (V4) → ~9.5/10 (V5 hardened)
 ```

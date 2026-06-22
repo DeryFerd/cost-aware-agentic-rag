@@ -9,11 +9,12 @@
 ```
 cost-aware-agentic-rag/
 ├── .env                          # Ollama Cloud API key, Redis, Langfuse config
-├── .github/workflows/ci.yml      # CI: lint → test → eval → docker
+├── .github/workflows/ci.yml      # CI: lint → test → eval → regression gate → docker
 ├── Dockerfile                    # Python 3.11-slim, port 8001
 ├── docker-compose.yml            # api + redis
 ├── pyproject.toml                # Project metadata + ruff config
 ├── requirements.txt              # Pinned dependencies
+├── DEPLOY.md                     # Deployment guide with env validation
 ├── STRUCTURE.md                  # This file
 ├── PROGRESS.md                   # Development progress
 ├── README.md                     # Project docs with ADRs
@@ -21,6 +22,7 @@ cost-aware-agentic-rag/
 ├── api/
 │   ├── main.py                   # FastAPI app (thin, router registration)
 │   ├── models.py                 # Pydantic request/response schemas
+│   ├── middleware.py              # TraceIDMiddleware (X-Trace-ID header)
 │   └── routes/
 │       ├── query.py              #   /query, /query/stream, /query/structured
 │       ├── upload.py             #   /upload CRUD
@@ -29,7 +31,8 @@ cost-aware-agentic-rag/
 │       ├── analytics.py          #   /analytics, /cost, /latency, /prompts
 │       ├── admin.py              #   /admin (auth required), /tenants (auth required)
 │       ├── knowledge.py          #   /knowledge, /eval
-│       └── compare.py            #   /compare/years, /compare/companies
+│       ├── compare.py            #   /compare/years, /compare/companies
+│       └── failure_analysis.py   #   /failures, /failures/trends
 │
 ├── src/
 │   ├── config.py                 # Central Settings (pydantic-settings)
@@ -85,7 +88,8 @@ cost-aware-agentic-rag/
 │   │   ├── golden_set.py         #   Golden Q&A pairs (Python module)
 │   │   ├── ragas_eval.py         #   RAGAS evaluator (optional lib)
 │   │   ├── retrieval_metrics.py  #   NDCG@10, MRR, Recall@K, Precision@K, Hit Rate
-│   │   └── prompt_regression.py  #   Prompt regression testing
+│   │   ├── prompt_regression.py  #   Prompt regression testing
+│   │   └── db.py                 #   SQLite eval runs persistence
 │   │
 │   ├── database/                 # Storage
 │   │   ├── cache.py              #   Redis wrapper (optional)
@@ -111,7 +115,7 @@ cost-aware-agentic-rag/
 │       ├── langfuse.py           #   Langfuse wrapper (flat traces)
 │       └── tracing.py            #   OpenTelemetry (TracerProvider + OTLP + @instrument)
 │
-├── web/templates/                # Jinja2 frontend (9 pages)
+├── web/templates/                # Jinja2 frontend (10 pages)
 │   ├── index.html                #   Landing page (8-card grid)
 │   ├── app.html                  #   Chat dashboard (SSE streaming)
 │   ├── upload.html               #   Document upload (drag-and-drop)
@@ -120,6 +124,7 @@ cost-aware-agentic-rag/
 │   ├── comparison.html           #   Model comparison dashboard
 │   ├── latency.html              #   Latency dashboard (p50/p95/p99)
 │   ├── cost_optimization.html    #   Cost optimization dashboard
+│   ├── failures.html             #   Failure analysis dashboard
 │   └── admin.html                #   Admin panel (auth, users, tenants, cache)
 │
 ├── scripts/                      # CLI scripts
@@ -129,12 +134,15 @@ cost-aware-agentic-rag/
 │   ├── eval_llm_judge.py         #   LLM-as-judge evaluation
 │   ├── evaluate.py               #   Evaluation (FIXED: uses LangGraphOrchestrator)
 │   ├── evaluate_ml.py            #   ML evaluation (FIXED: uses CostAwareRouter)
-│   └── load_test.py              #   Load test (concurrent users, p50/p95/p99)
+│   ├── load_test.py              #   Load test (concurrent users, p50/p95/p99)
+│   ├── cost_quality_report.py    #   Cost-quality comparison (5 routing strategies)
+│   └── validate_env.py           #   Env validation (vars, Ollama, Redis, dirs)
 │
 ├── tests/                        # Tests (237 total)
 │   ├── conftest.py               #   Pytest fixtures (mock LLM, Redis)
 │   ├── test_comprehensive.py     #   167 unit tests
-│   └── test_integration.py       #   70 integration tests
+│   ├── test_integration.py       #   70 integration tests
+│   └── test_failure_analysis.py  #   Failure analysis endpoint tests
 │
 └── data/                         # All file-based storage
     ├── raw/{TICKER}/{YEAR}/      #   SEC 10-K raw .txt files
@@ -345,11 +353,18 @@ src/eval/harness.py
 | GET | `/health` | — | System health |
 | GET | `/health/metrics` | — | Health metrics |
 
+### Failure Analysis
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/failures` | — | Failure analysis from latest eval |
+| GET | `/failures/trends` | — | Failure trends across runs |
+
 ---
 
 ## 4. Frontend
 
-### Jinja2 Templates (9 pages, server-rendered)
+### Jinja2 Templates (10 pages, server-rendered)
 
 | Page | Template | Key Endpoints |
 |------|----------|---------------|
@@ -361,6 +376,7 @@ src/eval/harness.py
 | Comparison | `comparison.html` | `GET /analytics/models` |
 | Latency | `latency.html` | `GET /latency/stats`, `GET /latency/trend` |
 | Cost Optimization | `cost_optimization.html` | `GET /cost/savings`, `GET /cost/token-budgets` |
+| Failure Analysis | `failures.html` | `GET /failures`, `GET /failures/trends` |
 | Admin | `admin.html` | `POST /admin/login`, CRUD users/tenants |
 
 **Archived**: `frontend-archived/` (Next.js), `dashboard-archived/` (Streamlit) — local only, not in git.
