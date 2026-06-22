@@ -19,6 +19,7 @@ class QueryResponse(BaseModel):
     latency_ms: float
     citations: list[str]
     steps_count: int
+    trace_id: str | None = None
 
 
 class DocumentInfo(BaseModel):

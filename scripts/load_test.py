@@ -187,7 +187,7 @@ def run_load_test(
 def print_summary(metrics: dict[str, Any]) -> None:
     """Pretty-print the load test summary."""
     r = metrics["results"]
-    l = metrics["latency_ms"]
+    lat = metrics["latency_ms"]
     c = metrics["cost"]
 
     print("\n" + "=" * 55)
@@ -199,14 +199,14 @@ def print_summary(metrics: dict[str, Any]) -> None:
     print(f"  Elapsed:          {r['elapsed_seconds']}s")
     print(f"  Requests/sec:     {r['requests_per_second']}")
     print("-" * 55)
-    print(f"  Latency min:      {l['min']}ms")
-    print(f"  Latency max:      {l['max']}ms")
-    print(f"  Latency mean:     {l['mean']}ms")
-    print(f"  Latency median:   {l['median']}ms")
-    print(f"  Latency p50:      {l['p50']}ms")
-    print(f"  Latency p95:      {l['p95']}ms")
-    print(f"  Latency p99:      {l['p99']}ms")
-    print(f"  Latency stdev:    {l['stdev']}ms")
+    print(f"  Latency min:      {lat['min']}ms")
+    print(f"  Latency max:      {lat['max']}ms")
+    print(f"  Latency mean:     {lat['mean']}ms")
+    print(f"  Latency median:   {lat['median']}ms")
+    print(f"  Latency p50:      {lat['p50']}ms")
+    print(f"  Latency p95:      {lat['p95']}ms")
+    print(f"  Latency p99:      {lat['p99']}ms")
+    print(f"  Latency stdev:    {lat['stdev']}ms")
     print("-" * 55)
     print(f"  Total cost:       ${c['total_usd']}")
     print(f"  Mean cost/req:    ${c['mean_per_request_usd']}")

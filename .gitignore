@@ -46,6 +46,7 @@ data/*.jsonl
 
 # Linting
 .ruff_cache/
+.mypy_cache/
 
 # Archived (local only)
 dashboard-archived/

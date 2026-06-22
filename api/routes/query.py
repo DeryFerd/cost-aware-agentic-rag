@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from api.models import QueryRequest, QueryResponse
@@ -42,6 +42,7 @@ Rules:
 
 @router.post("/query", response_model=QueryResponse)
 def query(
+    request: Request,
     req: QueryRequest,
     x_tenant_id: Annotated[str | None, Header()] = None,
     tenant_id: Annotated[str | None, Query()] = None,
@@ -131,6 +132,7 @@ def query(
         latency_ms=response["total_latency_ms"],
         citations=response["citations"],
         steps_count=len(response["steps"]),
+        trace_id=getattr(request.state, "trace_id", None),
     )
 
     audit.log_event(

@@ -1,10 +1,11 @@
 """Create sample SEC 10-K documents for testing."""
 
 import sys
+
 sys.stdout.reconfigure(encoding='utf-8')
 
-from pathlib import Path
 import os
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.config import settings

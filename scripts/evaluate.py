@@ -8,11 +8,12 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+import json
+
+from src.agents.graph import LangGraphOrchestrator
 from src.eval.evaluator import LLMEvaluator
 from src.eval.golden_set import get_golden_set
-from src.agents.graph import LangGraphOrchestrator
 from src.retrieval.hybrid import HybridRetriever
-import json
 
 
 def run_evaluation():

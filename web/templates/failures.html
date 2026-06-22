@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Failure Analysis - FinRAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-dark-950 text-white min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 glass border-r border-dark-700 flex flex-col">
+        <div class="p-4 border-b border-dark-700">
+            <a href="/" class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <span class="text-xl font-bold gradient-text">FinRAG</span>
+            </a>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="/app" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-comments"></i>
+                <span>Query</span>
+            </a>
+            <a href="/app/documents" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-file-alt"></i>
+                <span>Documents</span>
+            </a>
+            <a href="/app/upload" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>Upload</span>
+            </a>
+            <a href="/app/analytics" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-chart-bar"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="/app/comparison" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-balance-scale"></i>
+                <span>Model Comparison</span>
+            </a>
+            <a href="/app/latency" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Latency</span>
+            </a>
+            <a href="/app/cost-optimization" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-piggy-bank"></i>
+                <span>Cost Optimization</span>
+            </a>
+            <a href="/app/failures" class="flex items-center space-x-3 px-4 py-3 bg-primary-600/20 text-primary-400 rounded-xl">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Failure Analysis</span>
+            </a>
+            <a href="/app/admin" class="flex items-center space-x-3 px-4 py-3 text-dark-400 hover:text-white hover:bg-dark-800 rounded-xl transition">
+                <i class="fas fa-shield-alt"></i>
+                <span>Admin</span>
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-dark-700">
+            <div class="glass rounded-xl p-4">
+                <div class="flex items-center space-x-2 mb-3">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span class="text-sm font-medium">System Status</span>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">API</span>
+                        <span id="apiStatus" class="text-green-400">Connected</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-dark-400">Last Refresh</span>
+                        <span id="lastRefresh" class="text-white">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-6">
+        <div class="max-w-7xl mx-auto space-y-6">
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">Failure Analysis</h1>
+                    <p class="text-dark-400 mt-1">Analyze failed queries from evaluation runs</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-dark-400 text-sm">Auto-refresh: <span id="countdown">30</span>s</span>
+                    <button onclick="loadAll()" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-xl text-sm transition">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="glass rounded-2xl p-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-primary-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-list text-primary-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Total Queries</p>
+                            <p id="totalQueries" class="text-2xl font-bold">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-times-circle text-red-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Failures</p>
+                            <p id="totalFailures" class="text-2xl font-bold">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-percentage text-yellow-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Failure Rate</p>
+                            <p id="failureRate" class="text-2xl font-bold">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-2xl p-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-arrow-up text-purple-400" id="trendIcon"></i>
+                        </div>
+                        <div>
+                            <p class="text-dark-400 text-sm">Trend vs Previous</p>
+                            <p id="trendValue" class="text-2xl font-bold">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Failures by Category Bar Chart -->
+                <div class="glass rounded-2xl p-6">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center">
+                        <i class="fas fa-chart-bar text-primary-400 mr-3"></i>
+                        Failures by Bucket
+                    </h2>
+                    <div class="relative h-64">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Failure Rate Trend -->
+                <div class="glass rounded-2xl p-6">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center">
+                        <i class="fas fa-chart-line text-primary-400 mr-3"></i>
+                        Failure Rate Across Runs
+                    </h2>
+                    <div class="relative h-64">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Categories List -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-layer-group text-primary-400 mr-3"></i>
+                    Top Failure Categories
+                </h2>
+                <div id="topCategories" class="space-y-3">
+                    <p class="text-dark-400 text-sm">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Failures Table -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-table text-primary-400 mr-3"></i>
+                    Failure Details
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-dark-400 text-sm border-b border-dark-700">
+                                <th class="pb-3 font-medium">Query</th>
+                                <th class="pb-3 font-medium">Expected Answer</th>
+                                <th class="pb-3 font-medium">Actual Answer</th>
+                                <th class="pb-3 font-medium">Model</th>
+                                <th class="pb-3 font-medium">Latency</th>
+                                <th class="pb-3 font-medium">Cost</th>
+                                <th class="pb-3 font-medium">Bucket</th>
+                            </tr>
+                        </thead>
+                        <tbody id="failuresTable" class="divide-y divide-dark-700">
+                            <tr><td colspan="7" class="py-8 text-center text-dark-400">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        let refreshInterval;
+        let countdownValue = 30;
+        let categoryChart = null;
+        let trendChart = null;
+
+        loadAll();
+        startAutoRefresh();
+
+        async function loadAll() {
+            await Promise.all([loadFailureAnalysis(), loadFailureTrends()]);
+            countdownValue = 30;
+            document.getElementById('countdown').textContent = countdownValue;
+            document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+        }
+
+        async function loadFailureAnalysis() {
+            try {
+                const data = await fetch(`${API_BASE}/failures`).then(r => r.json());
+
+                document.getElementById('totalQueries').textContent = data.total_queries;
+                document.getElementById('totalFailures').textContent = data.total_failures;
+                document.getElementById('failureRate').textContent = data.failure_rate + '%';
+
+                // Render category chart
+                renderCategoryChart(data.top_categories);
+
+                // Render top categories list
+                renderTopCategories(data.top_categories);
+
+                // Render failures table
+                renderFailuresTable(data.failures);
+
+            } catch (e) {
+                console.error('Failed to load failure analysis:', e);
+                document.getElementById('apiStatus').textContent = 'Disconnected';
+                document.getElementById('apiStatus').className = 'text-red-400';
+            }
+        }
+
+        async function loadFailureTrends() {
+            try {
+                const data = await fetch(`${API_BASE}/failures/trends`).then(r => r.json());
+
+                // Trend cards
+                if (data.latest_run && data.previous_run) {
+                    const delta = data.latest_run.failure_rate - data.previous_run.failure_rate;
+                    const improved = delta < 0;
+                    const icon = document.getElementById('trendIcon');
+                    const value = document.getElementById('trendValue');
+
+                    if (improved) {
+                        icon.className = 'fas fa-arrow-down text-green-400';
+                        value.className = 'text-2xl font-bold text-green-400';
+                        value.textContent = delta.toFixed(2) + '%';
+                    } else if (delta > 0) {
+                        icon.className = 'fas fa-arrow-up text-red-400';
+                        value.className = 'text-2xl font-bold text-red-400';
+                        value.textContent = '+' + delta.toFixed(2) + '%';
+                    } else {
+                        icon.className = 'fas fa-minus text-dark-400';
+                        value.className = 'text-2xl font-bold';
+                        value.textContent = '0%';
+                    }
+                }
+
+                // Render trend chart
+                renderTrendChart(data.trends);
+
+            } catch (e) {
+                console.error('Failed to load failure trends:', e);
+            }
+        }
+
+        function renderCategoryChart(categories) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+
+            if (categoryChart) categoryChart.destroy();
+
+            const labels = categories.map(c => c.category);
+            const values = categories.map(c => c.count);
+            const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+            categoryChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Failures',
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(51, 65, 85, 0.5)' },
+                        },
+                        y: {
+                            ticks: { color: '#94a3b8', stepSize: 1 },
+                            grid: { color: 'rgba(51, 65, 85, 0.5)' },
+                            beginAtZero: true,
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTrendChart(trends) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+
+            if (trendChart) trendChart.destroy();
+
+            if (!trends || trends.length === 0) return;
+
+            const labels = trends.map(t => t.run_id.replace('run_', ''));
+            const rates = trends.map(t => t.failure_rate);
+
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Failure Rate %',
+                        data: rates,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#3b82f6',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(51, 65, 85, 0.5)' },
+                        },
+                        y: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(51, 65, 85, 0.5)' },
+                            beginAtZero: true,
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTopCategories(categories) {
+            const container = document.getElementById('topCategories');
+            if (!categories || categories.length === 0) {
+                container.innerHTML = '<p class="text-dark-400 text-sm">No failures recorded</p>';
+                return;
+            }
+
+            const maxCount = Math.max(...categories.map(c => c.count), 1);
+
+            container.innerHTML = categories.map(c => {
+                const pct = (c.count / maxCount * 100).toFixed(0);
+                const colors = {
+                    wrong_answer: 'bg-red-500',
+                    no_answer: 'bg-yellow-500',
+                    partial: 'bg-orange-500',
+                };
+                const barColor = colors[c.category] || 'bg-dark-500';
+
+                return `
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm w-32 text-dark-300 truncate">${c.category}</span>
+                        <div class="flex-1 bg-dark-700 rounded-full h-3">
+                            <div class="${barColor} h-3 rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                        <span class="text-sm font-medium w-10 text-right">${c.count}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderFailuresTable(failures) {
+            const table = document.getElementById('failuresTable');
+
+            if (!failures || failures.length === 0) {
+                table.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-dark-400">No failures in latest run</td></tr>';
+                return;
+            }
+
+            table.innerHTML = failures.map(f => {
+                const bucketColors = {
+                    wrong_answer: 'bg-red-500/20 text-red-400',
+                    no_answer: 'bg-yellow-500/20 text-yellow-400',
+                    partial: 'bg-orange-500/20 text-orange-400',
+                };
+                const bucketClass = bucketColors[f.bucket] || 'bg-dark-700 text-dark-300';
+
+                return `
+                    <tr class="hover:bg-dark-800/50">
+                        <td class="py-3 text-sm max-w-xs truncate" title="${escapeHtml(f.query)}">${escapeHtml(truncate(f.query, 60))}</td>
+                        <td class="py-3 text-sm max-w-xs truncate" title="${escapeHtml(f.expected)}">${escapeHtml(truncate(f.expected, 60))}</td>
+                        <td class="py-3 text-sm max-w-xs truncate" title="${escapeHtml(f.actual)}">${escapeHtml(truncate(f.actual, 60))}</td>
+                        <td class="py-3"><span class="px-2 py-1 bg-dark-700 rounded text-xs">${f.model_used || '-'}</span></td>
+                        <td class="py-3 text-sm">${(f.latency_ms || 0).toFixed(0)}ms</td>
+                        <td class="py-3 text-sm">$${(f.cost_usd || 0).toFixed(4)}</td>
+                        <td class="py-3"><span class="px-2 py-1 ${bucketClass} rounded text-xs">${f.bucket}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function truncate(str, len) {
+            if (!str) return '';
+            return str.length > len ? str.slice(0, len) + '...' : str;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function startAutoRefresh() {
+            refreshInterval = setInterval(() => {
+                countdownValue--;
+                document.getElementById('countdown').textContent = countdownValue;
+                if (countdownValue <= 0) {
+                    loadAll();
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

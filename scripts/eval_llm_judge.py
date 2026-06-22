@@ -8,7 +8,6 @@ faithfulness, answer relevancy, context precision, and context recall.
 from __future__ import annotations
 
 import sys
-import json
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent
@@ -17,7 +16,6 @@ if str(project_root) not in sys.path:
 
 from src.eval.llm_judge import LLMJudge, save_llm_eval_results
 from src.eval.ragas_eval import GOLDEN_DATASET
-
 
 # Mock answers — simulate what the RAG system would generate
 # These are plausible answers from SEC filing retrieval
@@ -98,7 +96,7 @@ def build_mock_eval_data() -> list[dict]:
 def main():
     print("=" * 70)
     print("LLM-as-Judge RAGAS Evaluation")
-    print(f"Judge Model: minimax-m3:cloud via Ollama Cloud")
+    print("Judge Model: minimax-m3:cloud via Ollama Cloud")
     print(f"Samples: {len(GOLDEN_DATASET)}")
     print("=" * 70)
 

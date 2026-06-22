@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-import sys
 import json
+import sys
 from pathlib import Path
 
 # Add project root to path
@@ -12,8 +12,8 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.eval.ragas_eval import RAGASEvaluator, EvalResult, save_eval_results
-from src.eval.retrieval_metrics import evaluate_retrieval, RetrievalResult
+from src.eval.ragas_eval import RAGASEvaluator, save_eval_results
+from src.eval.retrieval_metrics import evaluate_retrieval
 
 
 def run_demo_evaluation():

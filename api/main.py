@@ -13,11 +13,13 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from api.middleware import TraceIDMiddleware
 from api.models import HealthResponse
 from api.routes.admin import router as admin_router
 from api.routes.analytics import router as analytics_router
 from api.routes.compare import router as compare_router
 from api.routes.documents import router as documents_router
+from api.routes.failure_analysis import router as failure_router
 from api.routes.feedback import router as feedback_router
 from api.routes.knowledge import router as knowledge_router
 from api.routes.query import router as query_router
@@ -40,6 +42,8 @@ app = FastAPI(
     description="Production-shaped Agentic RAG prototype for SEC 10-K Financial Analysis",
     version="0.1.0",
 )
+
+app.add_middleware(TraceIDMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -88,6 +92,7 @@ app.include_router(analytics_router)
 app.include_router(admin_router)
 app.include_router(compare_router)
 app.include_router(knowledge_router)
+app.include_router(failure_router)
 
 
 # ── Page Routes ──────────────────────────────────────────────────────
@@ -134,6 +139,11 @@ def latency_page(request: Request) -> HTMLResponse:
 @app.get("/app/cost-optimization", response_class=HTMLResponse)
 def cost_optimization_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "cost_optimization.html")
+
+
+@app.get("/app/failures", response_class=HTMLResponse)
+def failures_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "failures.html")
 
 
 # ── Health Check ─────────────────────────────────────────────────────

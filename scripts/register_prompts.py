@@ -9,11 +9,11 @@ if str(project_root) not in sys.path:
 
 from src.generation.prompt_registry import PromptRegistry
 from src.generation.prompts import (
-    SYSTEM_PROMPT,
+    CITE_PROMPT,
+    COMPARE_PROMPT,
     ROUTER_PROMPT,
     SUMMARIZE_PROMPT,
-    COMPARE_PROMPT,
-    CITE_PROMPT,
+    SYSTEM_PROMPT,
     VALIDATE_PROMPT,
 )
 
