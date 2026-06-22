@@ -62,4 +62,3 @@ roast_review*.md
 
 # Stale files
 server.log
-"indexes,eval}"

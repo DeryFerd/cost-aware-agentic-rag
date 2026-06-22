@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,9 +33,11 @@ if str(project_root) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
+_startup_time = time.perf_counter()
+
 app = FastAPI(
     title="Cost-Aware Agentic RAG",
-    description="Production-grade RAG for SEC 10-K Financial Analysis",
+    description="Production-shaped Agentic RAG prototype for SEC 10-K Financial Analysis",
     version="0.1.0",
 )
 
@@ -59,17 +62,13 @@ templates = Jinja2Templates(directory=str(web_dir / "templates"))
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize admin user, tracing, and load indices on startup."""
+    """Initialize admin user and tracing on startup.
+
+    Index loading is deferred to first query for fast startup.
+    """
     setup_tracing()
     init_admin()
-
-    try:
-        from src.retrieval.hybrid import HybridRetriever
-        retriever = HybridRetriever()
-        retriever.load_indices()
-        logger.info("Indices loaded successfully")
-    except Exception as e:
-        logger.warning(f"Could not load indices: {e}")
+    logger.info("Startup complete in %.1fs", time.perf_counter() - _startup_time)
 
     # FastAPI OTel middleware (if opentelemetry-instrumentation-fastapi is installed)
     try:
@@ -140,26 +139,26 @@ def cost_optimization_page(request: Request) -> HTMLResponse:
 # ── Health Check ─────────────────────────────────────────────────────
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    try:
-        doc_count = 0
-        if settings.raw_dir.exists():
-            for company_dir in settings.raw_dir.iterdir():
-                if company_dir.is_dir():
-                    for year_dir in company_dir.iterdir():
-                        if year_dir.is_dir():
-                            for _f in year_dir.glob("*.txt"):
-                                doc_count += 1
+    doc_count = 0
+    if settings.raw_dir.exists():
+        for company_dir in settings.raw_dir.iterdir():
+            if company_dir.is_dir():
+                for year_dir in company_dir.iterdir():
+                    if year_dir.is_dir():
+                        for _f in year_dir.glob("*.txt"):
+                            doc_count += 1
 
+    chunk_count = 0
+    try:
         from src.retrieval.vector_store import VectorStore
         vs = VectorStore()
         chunk_count = vs.count()
+    except Exception:
+        pass
 
-        return HealthResponse(
-            status="ok",
-            document_count=doc_count,
-            chunk_count=chunk_count,
-            version="0.1.0",
-        )
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Service unavailable: {e}") from e
+    return HealthResponse(
+        status="ok",
+        document_count=doc_count,
+        chunk_count=chunk_count,
+        version="0.1.0",
+    )

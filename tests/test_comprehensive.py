@@ -5,10 +5,10 @@ API models, retrieval, ingestion, tables, evaluation, and config.
 All tests run without external services (Ollama, Redis, etc.).
 """
 
-import sys
 import json
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -177,9 +177,9 @@ class TestGuardrails:
 
 class TestRoutingClassifier:
     def test_classifier_trains(self):
-        from src.ml.routing import QueryClassifier, TRAINING_DATA
+        from src.ml.routing import TRAINING_DATA, QueryClassifier
         classifier = QueryClassifier()
-        queries, labels = zip(*TRAINING_DATA)
+        queries, labels = zip(*TRAINING_DATA, strict=False)
         classifier.train(list(queries), list(labels))
         assert classifier.pipeline is not None
 
@@ -254,7 +254,7 @@ class TestCostAwareRouter:
     def test_cost_per_token_nonzero(self):
         from src.ml.routing import CostAwareRouter
         router = CostAwareRouter()
-        for model, costs in router._cost_per_token.items():
+        for _model, costs in router._cost_per_token.items():
             assert costs["input"] > 0
             assert costs["output"] > 0
 
@@ -432,8 +432,10 @@ class TestAPIModels:
         assert req.max_tokens == 2048
 
     def test_query_request_validation(self):
+        from pydantic import ValidationError
+
         from api.models import QueryRequest
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             QueryRequest(query="")  # min_length=1
 
     def test_query_response(self):
@@ -616,7 +618,7 @@ class TestBM25Index:
 
 class TestGoldenSet:
     def test_golden_set_loads(self):
-        from src.eval.golden_set import get_golden_set, get_golden_set_by_company
+        from src.eval.golden_set import get_golden_set
         gs = get_golden_set()
         assert len(gs) > 0
 

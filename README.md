@@ -1,6 +1,6 @@
 # Cost-Aware Agentic RAG
 
-Production-grade Agentic RAG system for SEC 10-K Financial Document Analysis with cost-aware model routing. Uses a trained ML classifier to route queries by complexity, hybrid retrieval with RRF fusion, cross-encoder reranking, and a LangGraph-based agentic loop with self-reflection.
+Production-shaped Agentic RAG prototype for SEC 10-K Financial Document Analysis with cost-aware model routing. Uses a trained ML classifier to route queries by complexity, hybrid retrieval with RRF fusion, cross-encoder reranking, and a LangGraph-based agentic loop with self-reflection.
 
 ## Architecture
 
@@ -391,6 +391,16 @@ curl -X POST http://localhost:8001/query/stream \
   -H "Content-Type: application/json" \
   -d '{"query": "What are Tesla'\''s main risk factors?"}'
 ```
+
+## Known Limits
+
+- **Cost model is approximate** — Token costs use per-million-token rates from public Ollama pricing. Actual costs may vary by deployment.
+- **Upload status is in-memory** — Server restart loses pending upload status. Production would use persistent queue.
+- **File-based auth** — Admin users and sessions stored in JSON files. Suitable for demo, not enterprise multi-tenant.
+- **Single-process retrieval** — No distributed search or horizontal scaling. ChromaDB and BM25 are local.
+- **Eval harness is offline** — Golden set has 20 entries. Online eval with production traffic not yet implemented.
+- **Agent loop is bounded** — Max 2 reflection iterations. No human-in-the-loop approval or tool budget enforcement.
+- **No persistent deployment** — Docker builds locally. No cloud deployment, load balancer, or auto-scaling.
 
 ## License
 

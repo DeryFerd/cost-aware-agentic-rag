@@ -6,12 +6,9 @@ Tests full pipeline flows end-to-end using mocks (no real LLM/Redis/DB calls).
 import json
 import sys
 import time
-from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ── Mock heavy dependencies via fixture (scoped to integration tests only) ──
 # This avoids polluting sys.modules for other test files.
@@ -91,27 +88,25 @@ def _mock_heavy_deps():
 
 # Now safe to import project modules
 from src.agents.guardrails import (
+    GuardrailResult,
     Guardrails,
     InputGuardrails,
     OutputGuardrails,
-    GuardrailResult,
 )
-from src.ml.latency_tracker import LatencyTracker, timed
-from src.ml.ab_testing import ABTestConfig, ABTestRouter
-from src.ml.routing import RoutingResult
-from src.ml.query_processor import QueryProcessor, ProcessedQuery
-from src.eval.pipeline import EvalPipeline, EvalReport
 from src.eval.golden_set import (
     get_golden_set,
-    get_golden_set_by_company,
     get_golden_set_by_category,
+    get_golden_set_by_company,
 )
+from src.eval.pipeline import EvalPipeline, EvalReport
 from src.knowledge.graph import (
     FinancialKnowledgeGraph,
-    Entity,
     KnowledgeTriple,
 )
-
+from src.ml.ab_testing import ABTestConfig, ABTestRouter
+from src.ml.latency_tracker import LatencyTracker, timed
+from src.ml.query_processor import ProcessedQuery, QueryProcessor
+from src.ml.routing import RoutingResult
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -207,10 +202,10 @@ class TestUploadFlowIntegration:
 
     def test_save_and_get_upload_status(self, tmp_path):
         from src.ingestion.upload_handler import (
-            save_upload,
+            _upload_status,
             get_upload_status,
             list_uploads,
-            _upload_status,
+            save_upload,
         )
 
         with patch("src.ingestion.upload_handler.UPLOAD_DIR", tmp_path):
@@ -238,10 +233,10 @@ class TestUploadFlowIntegration:
 
     def test_delete_upload_cleans_up(self, tmp_path):
         from src.ingestion.upload_handler import (
-            save_upload,
+            _upload_status,
             delete_upload,
             get_upload_status,
-            _upload_status,
+            save_upload,
         )
 
         with patch("src.ingestion.upload_handler.UPLOAD_DIR", tmp_path):
@@ -327,7 +322,7 @@ class TestRBACIntegration:
         assert filtered == []
 
     def test_singleton_exists(self):
-        from src.retrieval.rbac import get_access_control, DocumentAccessControl
+        from src.retrieval.rbac import DocumentAccessControl, get_access_control
 
         ac = get_access_control()
         assert ac is not None
@@ -396,6 +391,7 @@ class TestSemanticCacheIntegration:
 
     def test_cosine_similarity_identical_vectors(self):
         import numpy as np
+
         from src.database.semantic_cache import _cosine_similarity
 
         a = np.array([1.0, 0.0, 0.0])
@@ -404,6 +400,7 @@ class TestSemanticCacheIntegration:
 
     def test_cosine_similarity_orthogonal_vectors(self):
         import numpy as np
+
         from src.database.semantic_cache import _cosine_similarity
 
         a = np.array([1.0, 0.0])
@@ -412,6 +409,7 @@ class TestSemanticCacheIntegration:
 
     def test_cosine_similarity_zero_vector(self):
         import numpy as np
+
         from src.database.semantic_cache import _cosine_similarity
 
         a = np.array([0.0, 0.0])
@@ -426,11 +424,10 @@ class TestLatencyTrackerIntegration:
 
     def test_timed_context_manager_completes_without_error(self, tmp_path):
         tracker = LatencyTracker(metrics_dir=tmp_path)
-        with patch("src.ml.latency_tracker._get_tracker", return_value=tracker):
-            with timed("retrieval"):
-                time.sleep(0.01)
-                # Inside the context, the component is being timed
-                assert "retrieval" in tracker._active
+        with patch("src.ml.latency_tracker._get_tracker", return_value=tracker), timed("retrieval"):
+            time.sleep(0.01)
+            # Inside the context, the component is being timed
+            assert "retrieval" in tracker._active
 
         # After the context exits, timing is complete and _active is cleared
         assert "retrieval" not in tracker._active
