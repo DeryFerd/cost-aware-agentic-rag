@@ -1,4 +1,8 @@
-"""Evaluation pipeline for RAG system."""
+"""Evaluation pipeline for RAG system.
+
+Uses LLM-as-Judge (minimax-m3:cloud) for accurate scoring when available,
+with word-overlap heuristics as offline fallback.
+"""
 
 from __future__ import annotations
 
@@ -28,24 +32,32 @@ class EvalReport:
     overall_score: float
     timestamp: float = 0.0
     metadata: dict = field(default_factory=dict)
+    judge_method: str = "heuristic"
 
 
 class EvalPipeline:
-    """End-to-end evaluation pipeline for RAG system."""
+    """End-to-end evaluation pipeline for RAG system.
+
+    Uses LLM-as-Judge for accurate scoring when the judge model is reachable,
+    falling back to word-overlap heuristics for offline/fast evaluation.
+    """
 
     def __init__(self, storage_path: str | Path | None = None):
         self.storage_path = Path(storage_path) if storage_path else None
-        self.metrics: dict[str, callable] = {}
-        self._register_default_metrics()
+        self._judge = None
+        self._judge_available = False
+        self._init_judge()
 
-    def _register_default_metrics(self):
-        """Register default evaluation metrics."""
-        self.metrics["retrieval_precision"] = self._retrieval_precision
-        self.metrics["retrieval_recall"] = self._retrieval_recall
-        self.metrics["context_relevance"] = self._context_relevance
-        self.metrics["answer_faithfulness"] = self._answer_faithfulness
-        self.metrics["answer_relevance"] = self._answer_relevance
-        self.metrics["latency"] = self._latency_metric
+    def _init_judge(self):
+        """Try to initialize LLM judge for accurate evaluation."""
+        try:
+            from src.eval.llm_judge import LLMJudge
+            self._judge = LLMJudge()
+            self._judge_available = True
+            logger.info("LLM Judge initialized for EvalPipeline")
+        except Exception as e:
+            logger.info(f"LLM Judge unavailable, using heuristic fallback: {e}")
+            self._judge_available = False
 
     def evaluate(
         self,
@@ -56,6 +68,8 @@ class EvalPipeline:
         expected_docs: list[str] | None = None,
     ) -> EvalReport:
         """Run full evaluation pipeline.
+
+        Uses LLM-as-Judge when available, falls back to heuristics.
 
         Args:
             query: User query
@@ -68,9 +82,21 @@ class EvalPipeline:
             EvalReport with all metrics
         """
         results = []
+        judge_method = "heuristic"
 
-        # Run each metric
-        for name, metric_fn in self.metrics.items():
+        # Try LLM judge first (accurate scoring)
+        if self._judge_available and self._judge and ground_truth:
+            try:
+                judge_result = self._evaluate_with_judge(
+                    query, answer, retrieved_docs, ground_truth
+                )
+                judge_method = "llm_judge"
+                return judge_result
+            except Exception as e:
+                logger.warning(f"LLM judge evaluation failed, falling back to heuristic: {e}")
+
+        # Heuristic fallback
+        for name, metric_fn in self._heuristic_metrics().items():
             try:
                 start_time = time.time()
                 value = metric_fn(
@@ -97,7 +123,6 @@ class EvalPipeline:
                     timestamp=time.time(),
                 ))
 
-        # Calculate overall score
         scores = [r.value for r in results if r.metric_name != "latency"]
         overall = sum(scores) / len(scores) if scores else 0.0
 
@@ -107,7 +132,57 @@ class EvalPipeline:
             overall_score=overall,
             timestamp=time.time(),
             metadata={"num_docs": len(retrieved_docs)},
+            judge_method=judge_method,
         )
+
+    def _evaluate_with_judge(
+        self,
+        query: str,
+        answer: str,
+        contexts: list[str],
+        ground_truth: str,
+    ) -> EvalReport:
+        """Evaluate using LLM-as-Judge."""
+        result = self._judge.evaluate(
+            question=query,
+            answer=answer,
+            contexts=contexts if contexts else [""],
+            ground_truth=ground_truth,
+        )
+
+        metrics = [
+            EvalResult(metric_name="answer_faithfulness", value=result.faithfulness, timestamp=time.time()),
+            EvalResult(metric_name="answer_relevance", value=result.answer_relevancy, timestamp=time.time()),
+            EvalResult(metric_name="context_precision", value=result.context_precision, timestamp=time.time()),
+            EvalResult(metric_name="context_recall", value=result.context_recall, timestamp=time.time()),
+        ]
+
+        overall = (
+            result.faithfulness * 0.3
+            + result.answer_relevancy * 0.3
+            + result.context_precision * 0.2
+            + result.context_recall * 0.2
+        )
+
+        return EvalReport(
+            query=query,
+            results=metrics,
+            overall_score=overall,
+            timestamp=time.time(),
+            metadata={"num_docs": len(contexts), "judge_model": self._judge.model},
+            judge_method="llm_judge",
+        )
+
+    def _heuristic_metrics(self) -> dict[str, callable]:
+        """Return heuristic metric functions (fallback when LLM judge unavailable)."""
+        return {
+            "retrieval_precision": self._retrieval_precision,
+            "retrieval_recall": self._retrieval_recall,
+            "context_relevance": self._context_relevance,
+            "answer_faithfulness": self._answer_faithfulness,
+            "answer_relevance": self._answer_relevance,
+            "latency": self._latency_metric,
+        }
 
     def _retrieval_precision(
         self,
@@ -119,7 +194,7 @@ class EvalPipeline:
     ) -> float:
         """Fraction of retrieved docs that are relevant."""
         if not expected_docs or not retrieved_docs:
-            return 0.5  # Neutral score when no ground truth
+            return 0.5
 
         relevant_count = 0
         for doc in retrieved_docs:
@@ -163,7 +238,6 @@ class EvalPipeline:
         if not retrieved_docs:
             return 0.0
 
-        # Simple keyword overlap
         query_words = set(query.lower().split())
         total_score = 0.0
 
@@ -186,13 +260,11 @@ class EvalPipeline:
         if not retrieved_docs or not answer:
             return 0.5
 
-        # Check if answer contains claims not in context
         answer_words = set(answer.lower().split())
         context_words = set()
         for doc in retrieved_docs:
             context_words.update(doc.lower().split())
 
-        # Words in answer not in context (potential hallucination)
         unsupported = answer_words - context_words
         faithfulness = 1.0 - (len(unsupported) / len(answer_words) if answer_words else 0)
 
@@ -225,7 +297,6 @@ class EvalPipeline:
         expected_docs: list[str] | None = None,
     ) -> float:
         """Latency metric (inverted: lower is better)."""
-        # This is handled externally, return neutral
         return 1.0
 
     def _text_similarity(self, text1: str, text2: str) -> float:
@@ -249,6 +320,7 @@ class EvalPipeline:
             "overall_score": report.overall_score,
             "timestamp": report.timestamp,
             "metadata": report.metadata,
+            "judge_method": report.judge_method,
             "results": [
                 {
                     "metric": r.metric_name,
@@ -278,14 +350,7 @@ class CIGating:
         }
 
     def check(self, report: EvalReport) -> dict:
-        """Check if evaluation passes CI gates.
-
-        Args:
-            report: EvalReport to check
-
-        Returns:
-            Dict with pass/fail and details
-        """
+        """Check if evaluation passes CI gates."""
         results = {}
         all_pass = True
 
@@ -324,6 +389,7 @@ class EvalStorage:
             "query": report.query,
             "overall_score": report.overall_score,
             "timestamp": report.timestamp,
+            "judge_method": report.judge_method,
             "results": [
                 {"metric": r.metric_name, "value": r.value}
                 for r in report.results

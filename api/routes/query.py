@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Annotated
@@ -41,7 +42,7 @@ Rules:
 
 
 @router.post("/query", response_model=QueryResponse)
-def query(
+async def query(
     request: Request,
     req: QueryRequest,
     x_tenant_id: Annotated[str | None, Header()] = None,
@@ -84,7 +85,9 @@ def query(
         logger.warning(f"Cache check failed: {e}")
 
     try:
-        response = orchestrator.run(query_text, tenant_id=resolved_tenant_id or "")
+        response = await asyncio.to_thread(
+            orchestrator.run, query_text, "default", resolved_tenant_id or ""
+        )
     except Exception as e:
         logger.error(f"Query failed: {e}")
         raise HTTPException(status_code=500, detail=f"Query processing failed: {e}") from e
@@ -298,7 +301,7 @@ def query_stream(
 
 
 @router.post("/query/structured")
-def query_structured(
+async def query_structured(
     req: QueryRequest,
     x_tenant_id: Annotated[str | None, Header()] = None,
     tenant_id: Annotated[str | None, Query()] = None,
@@ -330,7 +333,9 @@ def query_structured(
     query_text = input_result.sanitized_input or query_text
 
     try:
-        response = orchestrator.run(query_text, tenant_id=resolved_tenant_id or "")
+        response = await asyncio.to_thread(
+            orchestrator.run, query_text, "default", resolved_tenant_id or ""
+        )
     except Exception as e:
         logger.error(f"Query failed: {e}")
         raise HTTPException(status_code=500, detail=f"Query processing failed: {e}") from e

@@ -13,6 +13,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from opentelemetry import trace
 
+from src.agents.guardrails import guardrails
 from src.agents.memory import memory
 from src.config import settings
 from src.generation.llm_client import OllamaClient
@@ -153,6 +154,17 @@ def planner_node(state: AgentState) -> dict:
     from src.ml.routing import CostAwareRouter
 
     query = state["query"]
+
+    # Input guardrails — block prompt injection, redact PII
+    input_check = guardrails.validate_input(query)
+    if not input_check.passed:
+        return {
+            "answer": f"Input rejected: {input_check.message}",
+            "steps": state.get("steps", []) + [{"action": "guardrail_block", "reason": input_check.message}],
+            "needs_retry": False,
+        }
+
+    query = input_check.sanitized_input or query
 
     # Use trained classifier for routing (not keyword matching)
     router = CostAwareRouter()
@@ -336,6 +348,11 @@ Rules:
 
     answer = _clean_response(resp.content)
     citations = _extract_citations(query, context)
+
+    # Output guardrails — check grounding, hallucination, financial advice language
+    output_check = guardrails.validate_output(answer=answer, context=context, query=query)
+    if "add_disclaimer" in output_check.issues:
+        answer = guardrails.output.add_disclaimer(answer)
 
     # Add to memory
     memory.add_message("user", query)

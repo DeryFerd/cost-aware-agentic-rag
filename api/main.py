@@ -97,58 +97,58 @@ app.include_router(failure_router)
 
 # ── Page Routes ──────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
-def landing_page(request: Request) -> HTMLResponse:
+async def landing_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/app", response_class=HTMLResponse)
-def dashboard_page(request: Request) -> HTMLResponse:
+async def dashboard_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "app.html")
 
 
 @app.get("/app/documents", response_class=HTMLResponse)
-def documents_page(request: Request) -> HTMLResponse:
+async def documents_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "documents.html")
 
 
 @app.get("/app/analytics", response_class=HTMLResponse)
-def analytics_page(request: Request) -> HTMLResponse:
+async def analytics_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "analytics.html")
 
 
 @app.get("/app/upload", response_class=HTMLResponse)
-def upload_page(request: Request) -> HTMLResponse:
+async def upload_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "upload.html")
 
 
 @app.get("/app/comparison", response_class=HTMLResponse)
-def comparison_page(request: Request) -> HTMLResponse:
+async def comparison_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "comparison.html")
 
 
 @app.get("/app/admin", response_class=HTMLResponse)
-def admin_page(request: Request) -> HTMLResponse:
+async def admin_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "admin.html")
 
 
 @app.get("/app/latency", response_class=HTMLResponse)
-def latency_page(request: Request) -> HTMLResponse:
+async def latency_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "latency.html")
 
 
 @app.get("/app/cost-optimization", response_class=HTMLResponse)
-def cost_optimization_page(request: Request) -> HTMLResponse:
+async def cost_optimization_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "cost_optimization.html")
 
 
 @app.get("/app/failures", response_class=HTMLResponse)
-def failures_page(request: Request) -> HTMLResponse:
+async def failures_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "failures.html")
 
 
 # ── Health Check ─────────────────────────────────────────────────────
 @app.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
+async def health() -> HealthResponse:
     doc_count = 0
     if settings.raw_dir.exists():
         for company_dir in settings.raw_dir.iterdir():

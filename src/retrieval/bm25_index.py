@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import pickle
 import re
 from pathlib import Path
 
+import joblib
 import numpy as np
 from rank_bm25 import BM25Okapi
 
@@ -104,14 +104,13 @@ class BM25Index:
         """Persist index to disk."""
         path = path or settings.bm25_path
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "wb") as f:
-            pickle.dump(
-                {
-                    "corpus": self.corpus,
-                    "metadata": self.metadata,
-                },
-                f,
-            )
+        joblib.dump(
+            {
+                "corpus": self.corpus,
+                "metadata": self.metadata,
+            },
+            path,
+        )
 
     def load(self, path: Path | None = None) -> bool:
         """Load index from disk. Returns False if not found."""
@@ -119,8 +118,7 @@ class BM25Index:
         if not path.exists():
             return False
 
-        with open(path, "rb") as f:
-            data = pickle.load(f)  # noqa: S301
+        data = joblib.load(path)
 
         self.corpus = data["corpus"]
         self.metadata = data["metadata"]

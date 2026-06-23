@@ -9,12 +9,13 @@ Instead of keyword matching, this module provides:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
-import pickle
 from dataclasses import dataclass
 from typing import Any
 
+import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -86,12 +87,23 @@ class QueryClassifier:
         self._load_model()
 
     def _load_model(self):
-        """Load trained model if available."""
+        """Load trained model if available, with hash verification."""
         model_path = settings.project_root / "data" / "models" / "query_classifier.pkl"
+        hash_path = model_path.with_suffix(".pkl.sha256")
         if model_path.exists():
             try:
-                with open(model_path, "rb") as f:
-                    self.pipeline = pickle.load(f)
+                # Verify hash if hash file exists
+                if hash_path.exists():
+                    expected_hash = hash_path.read_text().strip()
+                    actual_hash = hashlib.sha256(model_path.read_bytes()).hexdigest()
+                    if actual_hash != expected_hash:
+                        logger.warning(
+                            f"Classifier hash mismatch! Expected {expected_hash[:16]}..., "
+                            f"got {actual_hash[:16]}... — refusing to load"
+                        )
+                        return
+
+                self.pipeline = joblib.load(model_path)
                 logger.info(f"Loaded query classifier from {model_path}")
             except Exception as e:
                 logger.warning(f"Failed to load classifier: {e}")
@@ -113,15 +125,19 @@ class QueryClassifier:
 
         self.pipeline.fit(queries, labels)
 
-        # Save model
+        # Save model with hash verification
         model_dir = settings.project_root / "data" / "models"
         model_dir.mkdir(parents=True, exist_ok=True)
         model_path = model_dir / "query_classifier.pkl"
+        hash_path = model_path.with_suffix(".pkl.sha256")
 
-        with open(model_path, "wb") as f:
-            pickle.dump(self.pipeline, f)
+        joblib.dump(self.pipeline, model_path)
 
-        logger.info(f"Trained and saved classifier to {model_path}")
+        # Save SHA-256 hash for integrity verification
+        model_hash = hashlib.sha256(model_path.read_bytes()).hexdigest()
+        hash_path.write_text(model_hash)
+
+        logger.info(f"Trained and saved classifier to {model_path} (hash: {model_hash[:16]}...)")
 
     def predict(self, query: str) -> tuple[str, float]:
         """Predict complexity and confidence."""
@@ -293,13 +309,17 @@ def train_with_metrics(
     classifier = QueryClassifier()
     classifier.pipeline = pipeline
 
-    # Save model
+    # Save model with hash verification
     model_dir = settings.project_root / "data" / "models"
     model_dir.mkdir(parents=True, exist_ok=True)
     model_path = model_dir / "query_classifier.pkl"
+    hash_path = model_path.with_suffix(".pkl.sha256")
 
-    with open(model_path, "wb") as f:
-        pickle.dump(pipeline, f)
+    joblib.dump(pipeline, model_path)
+
+    # Save SHA-256 hash for integrity verification
+    model_hash = hashlib.sha256(model_path.read_bytes()).hexdigest()
+    hash_path.write_text(model_hash)
 
     logger.info(f"Trained classifier with {len(queries)} examples, saved to {model_path}")
     logger.info(f"Test accuracy: {accuracy:.3f} | CV: {cv_scores.mean():.3f} +/- {cv_scores.std():.3f}")
