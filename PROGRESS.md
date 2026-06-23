@@ -9,6 +9,8 @@
 ## Git History (Recent)
 
 ```
+41b7c0c feat: Roast Review V6 fixes - eval honesty, guardrails in graph, pickle→joblib, async API, clean repo
+012903b docs: Update PROGRESS.md and STRUCTURE.md for V5 completion
 4340b0d feat: Roast Review V5 Phase 2+3 - cost-quality report, eval DB, trace IDs, failure analysis, deployment guide
 40467c7 feat: Roast Review V5 Phase 1 - credibility leaks fixed
 7268d1e docs: Rewrite STRUCTURE.md - complete architecture map with V4 changes
@@ -130,6 +132,13 @@ b9e10a5 feat: Phase 3 senior-level features - frontend polish, prompt versioning
 - **CI eval regression gate** — 10% score drop, 1.5x latency, 2x cost triggers failure
 - **Deployment guide** — `DEPLOY.md` with env vars, quick start, Docker, validation
 - **Env validation** — `scripts/validate_env.py` checks vars, Ollama, Redis, data dirs
+
+### Roast Review V6 — Critical Fixes
+- **Eval pipeline honest** — `EvalPipeline` now uses `LLMJudge` when available, heuristic fallback. Reports `judge_method` in output. No more fake word-overlap CI gating
+- **Guardrails wired into agent graph** — `planner_node` checks input guardrails (PII redaction, prompt injection), `generator_node` checks output grounding + adds disclaimer
+- **pickle → joblib + SHA-256** — Classifier and BM25 index use `joblib.load/dump`. Classifier saves `.pkl.sha256` hash file, verifies integrity before loading
+- **API async** — All route handlers `async def`, `orchestrator.run()` wrapped in `asyncio.to_thread()` — non-blocking event loop under load
+- **Clean repo** — `roast_review_fixed_V2.md` untracked (stays local only)
 
 ---
 
@@ -543,5 +552,5 @@ cost-aware-agentic-rag/
 ## Score Progression
 
 ```
-3.5/10 → 5/10 → ~8/10 → ~9/10 → 9.5/10 (V3) → ~9.5/10 (V4) → ~9.5/10 (V5 hardened)
+3.5/10 → 5/10 → ~8/10 → ~9/10 → 9.5/10 (V3) → ~9.5/10 (V4) → ~9.5/10 (V5) → ~9.5/10 (V6 critical fixes)
 ```

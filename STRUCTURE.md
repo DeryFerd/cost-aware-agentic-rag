@@ -39,9 +39,9 @@ cost-aware-agentic-rag/
 │   │
 │   ├── agents/                   # Agent orchestration
 │   │   ├── graph.py              #   LangGraph StateGraph + LangGraphOrchestrator
-│   │   │                         #   (classify→retrieve→generate→reflect, tenant filtering, cost accumulation)
+│   │   │                         #   (guardrails→classify→retrieve→generate→reflect, tenant filtering, cost accumulation)
 │   │   ├── memory.py             #   ConversationMemory (per-session, in-memory)
-│   │   ├── guardrails.py         #   InputGuardrails + OutputGuardrails
+│   │   ├── guardrails.py         #   InputGuardrails + OutputGuardrails (wired into graph nodes)
 │   │   └── compare.py            #   FilingComparator (year-over-year, cross-company)
 │   │
 │   ├── generation/               # LLM inference
@@ -53,7 +53,7 @@ cost-aware-agentic-rag/
 │   │
 │   ├── retrieval/                # Retrieval engine
 │   │   ├── vector_store.py       #   ChromaDB + bge-small-en-v1.5 (384d)
-│   │   ├── bm25_index.py         #   BM25Okapi (stemming + stopwords)
+│   │   ├── bm25_index.py         #   BM25Okapi (stemming + stopwords, joblib persistence)
 │   │   ├── hybrid.py             #   HybridRetriever (vector + BM25 + RRF + cross-encoder)
 │   │   ├── fusion.py             #   RRF algorithm: score = Σ 1/(k + rank_i), k=60
 │   │   ├── reranker.py           #   CrossEncoderReranker (ms-marco-MiniLM-L-6-v2)
@@ -69,7 +69,7 @@ cost-aware-agentic-rag/
 │   │   └── async_pipeline.py     #   Async document processing
 │   │
 │   ├── ml/                       # ML & analytics
-│   │   ├── routing.py            #   CostAwareRouter (TF-IDF + LogisticRegression, 110 examples)
+│   │   ├── routing.py            #   CostAwareRouter (TF-IDF + LogisticRegression, joblib + SHA-256)
 │   │   ├── query_processor.py    #   QueryProcessor (rewrite, HyDE, multi-query)
 │   │   ├── feedback.py           #   Feedback storage (JSONL)
 │   │   ├── cost_analytics.py     #   CostAnalytics (model comparison, trends)
@@ -82,7 +82,7 @@ cost-aware-agentic-rag/
 │   │   └── evaluation.py         #   MLEvaluator (heuristic scoring)
 │   │
 │   ├── eval/                     # Evaluation
-│   │   ├── pipeline.py           #   EvalPipeline + CIGating + EvalStorage
+│   │   ├── pipeline.py           #   EvalPipeline (LLMJudge + heuristic fallback) + CIGating + EvalStorage
 │   │   ├── harness.py            #   Unified eval harness (golden set + judge + failure buckets)
 │   │   ├── llm_judge.py          #   LLMJudge (minimax-m3:cloud as judge)
 │   │   ├── golden_set.py         #   Golden Q&A pairs (Python module)
