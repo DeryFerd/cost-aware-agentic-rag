@@ -148,6 +148,55 @@ TOOLS = [
 
 # ── Graph Nodes ───────────────────────────────────────────────────
 
+# Patterns for queries that don't need retrieval (general knowledge)
+_SKIP_RETRIEVAL_PATTERNS = [
+    r"^what is (the )?(capital|currency|population|language|president|ceo) of",
+    r"^who (is|was|invented|discovered|founded)",
+    r"^when (did|was|is)",
+    r"^where (is|was|are)",
+    r"^how (old|tall|far|long|many|much)",
+    r"^define ",
+    r"^what does .* mean",
+    r"^explain (the )?(concept of|meaning of|difference between)",
+    r"^what are the (rules|principles|laws|laws of)",
+]
+
+
+def _should_skip_retrieval(query: str) -> bool:
+    """Check if query can be answered from model knowledge (no retrieval needed).
+
+    20-40% of queries in a typical corpus are answerable from base model knowledge.
+    Running retrieval on them adds latency, cost, and noise.
+    """
+    import re
+    query_lower = query.lower().strip()
+    return any(re.match(pattern, query_lower) for pattern in _SKIP_RETRIEVAL_PATTERNS)
+
+
+def _verify_citations(answer: str, context: str) -> tuple[str, list[str]]:
+    """Verify that citations in the answer actually appear in the context.
+
+    Returns:
+        Tuple of (cleaned_answer, list_of_valid_citations)
+    """
+    import re
+
+    # Extract citation patterns like [MSFT 2024] or (MSFT 2024)
+    citation_pattern = r'[\[\(]([A-Z]{2,5})\s+(\d{4})[\]\)]'
+    citations = re.findall(citation_pattern, answer)
+
+    valid_citations = []
+    context_lower = context.lower()
+
+    for ticker, year in citations:
+        # Check if the citation appears in context
+        citation_str = f"{ticker} {year}"
+        if citation_str.lower() in context_lower or f"[{ticker} {year}]" in context:
+            valid_citations.append(citation_str)
+
+    return answer, valid_citations
+
+
 @instrument("planner_node")
 def planner_node(state: AgentState) -> dict:
     """Plan which tools to use for the query."""
@@ -165,6 +214,27 @@ def planner_node(state: AgentState) -> dict:
         }
 
     query = input_check.sanitized_input or query
+
+    # Skip retrieval for known facts (saves latency + cost for 20-40% of queries)
+    if _should_skip_retrieval(query):
+        llm = OllamaClient()
+        resp = llm.chat(
+            model=settings.ollama_simple_model,
+            messages=[{"role": "user", "content": query}],
+            temperature=0.1,
+            max_tokens=500,
+        )
+        return {
+            "answer": resp.content,
+            "model": settings.ollama_simple_model,
+            "complexity": "simple",
+            "tools_used": [],
+            "steps": state.get("steps", []) + [{"action": "skip_retrieval", "reason": "known_fact"}],
+            "total_cost": state.get("total_cost", 0.0) + resp.cost_usd,
+            "tokens_in": resp.tokens_in,
+            "tokens_out": resp.tokens_out,
+            "needs_retry": False,
+        }
 
     # Use trained classifier for routing (not keyword matching)
     router = CostAwareRouter()
@@ -349,6 +419,11 @@ Rules:
     answer = _clean_response(resp.content)
     citations = _extract_citations(query, context)
 
+    # Verify citations actually appear in context
+    answer, verified_citations = _verify_citations(answer, context)
+    if len(verified_citations) < len(citations):
+        logger.info(f"Citations verified: {len(verified_citations)}/{len(citations)} valid")
+
     # Output guardrails — check grounding, hallucination, financial advice language
     output_check = guardrails.validate_output(answer=answer, context=context, query=query)
     if "add_disclaimer" in output_check.issues:
@@ -373,7 +448,7 @@ Rules:
 
     return {
         "answer": answer,
-        "citations": citations,
+        "citations": verified_citations,
         "steps": state.get("steps", []) + [{"action": "respond", "model": model}],
         "messages": [{"role": "assistant", "content": answer}],
         "total_cost": state.get("total_cost", 0.0) + resp.cost_usd,

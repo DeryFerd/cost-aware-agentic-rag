@@ -40,11 +40,20 @@ class VectorStore:
         return embeddings.tolist()
 
     def add_documents(self, chunks: list[dict], ticker: str) -> int:
-        """Add document chunks to the vector store."""
+        """Add document chunks to the vector store.
+
+        Uses contextual text for embedding when available (contextual embeddings).
+        Falls back to raw text if contextual text is not present.
+        """
         if not chunks:
             return 0
 
-        texts = [c["text"] for c in chunks]
+        # Use contextual text for embedding if available (contextual embeddings)
+        texts = []
+        for c in chunks:
+            contextual = c.get("metadata", {}).get("contextual_text")
+            texts.append(contextual if contextual else c["text"])
+
         embeddings = self._embed(texts)
 
         # Generate unique IDs using ticker + content hash to avoid collisions

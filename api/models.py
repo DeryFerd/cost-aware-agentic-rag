@@ -20,6 +20,8 @@ class QueryResponse(BaseModel):
     citations: list[str]
     steps_count: int
     trace_id: str | None = None
+    agent_type: str = "langgraph"
+    escalation_ticket_id: str | None = None
 
 
 class DocumentInfo(BaseModel):

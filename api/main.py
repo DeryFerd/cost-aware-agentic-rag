@@ -19,10 +19,14 @@ from api.routes.admin import router as admin_router
 from api.routes.analytics import router as analytics_router
 from api.routes.compare import router as compare_router
 from api.routes.documents import router as documents_router
+from api.routes.escalation import router as escalation_router
 from api.routes.failure_analysis import router as failure_router
 from api.routes.feedback import router as feedback_router
 from api.routes.knowledge import router as knowledge_router
+from api.routes.mcp import router as mcp_router
+from api.routes.online_eval import router as online_eval_router
 from api.routes.query import router as query_router
+from api.routes.rate_limit import router as rate_limit_router
 from api.routes.upload import router as upload_router
 from src.config import settings
 from src.database.admin_auth import init_admin
@@ -93,6 +97,10 @@ app.include_router(admin_router)
 app.include_router(compare_router)
 app.include_router(knowledge_router)
 app.include_router(failure_router)
+app.include_router(mcp_router)
+app.include_router(escalation_router)
+app.include_router(online_eval_router)
+app.include_router(rate_limit_router)
 
 
 # ── Page Routes ──────────────────────────────────────────────────────

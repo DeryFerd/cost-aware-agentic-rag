@@ -69,9 +69,16 @@ class BM25Index:
         return [_simple_stem(t) for t in tokens if t not in STOP_WORDS and len(t) > 1]
 
     def add_documents(self, chunks: list[dict]) -> int:
-        """Add chunks to the BM25 index."""
+        """Add chunks to the BM25 index.
+
+        Uses contextual text for indexing when available (contextual BM25).
+        Falls back to raw text if contextual text is not present.
+        """
         for chunk in chunks:
-            self.corpus.append(chunk["text"])
+            # Use contextual text for indexing if available
+            contextual = chunk.get("metadata", {}).get("contextual_text")
+            text = contextual if contextual else chunk["text"]
+            self.corpus.append(text)
             self.metadata.append(chunk.get("metadata", {}))
 
         tokenized = [self._tokenize(doc) for doc in self.corpus]
