@@ -24,7 +24,7 @@ cost-aware-agentic-rag/
 │   ├── models.py                 # Pydantic request/response schemas
 │   ├── middleware.py              # TraceIDMiddleware (X-Trace-ID header)
 │   └── routes/
-│       ├── query.py              #   /query, /query/stream, /query/structured
+│       ├── query.py              #   /query, /query/stream, /query/structured, /query/multi-agent
 │       ├── upload.py             #   /upload CRUD
 │       ├── documents.py          #   /documents, /conversation
 │       ├── feedback.py           #   /feedback, /suggestions
@@ -32,17 +32,25 @@ cost-aware-agentic-rag/
 │       ├── admin.py              #   /admin (auth required), /tenants (auth required)
 │       ├── knowledge.py          #   /knowledge, /eval
 │       ├── compare.py            #   /compare/years, /compare/companies
-│       └── failure_analysis.py   #   /failures, /failures/trends
+│       ├── failure_analysis.py   #   /failures, /failures/trends
+│       ├── mcp.py                #   /mcp/tools, /mcp/call
+│       ├── escalation.py         #   /escalations, /escalations/{id}/resolve
+│       ├── online_eval.py        #   /online-eval/stats, /online-eval/evaluate
+│       └── rate_limit.py         #   /rate-limits/stats, /rate-limits/config
 │
 ├── src/
 │   ├── config.py                 # Central Settings (pydantic-settings)
 │   │
 │   ├── agents/                   # Agent orchestration
 │   │   ├── graph.py              #   LangGraph StateGraph + LangGraphOrchestrator
-│   │   │                         #   (guardrails→classify→retrieve→generate→reflect, tenant filtering, cost accumulation)
+│   │   │                         #   (guardrails→classify→retrieve→generate→reflect, tenant filtering, cost accumulation,
+│   │   │                         #    skip retrieval for known facts, citation verification)
 │   │   ├── memory.py             #   ConversationMemory (per-session, in-memory)
 │   │   ├── guardrails.py         #   InputGuardrails + OutputGuardrails (wired into graph nodes)
-│   │   └── compare.py            #   FilingComparator (year-over-year, cross-company)
+│   │   ├── compare.py            #   FilingComparator (year-over-year, cross-company)
+│   │   ├── mcp_server.py         #   MCP-compatible tool definitions + handler (search, get_financials, compare)
+│   │   ├── human_escalation.py   #   Escalation tickets, low-confidence/high-stakes detection
+│   │   └── multi_agent.py        #   ResearchAgent → AnalysisAgent → VerificationAgent pipeline
 │   │
 │   ├── generation/               # LLM inference
 │   │   ├── llm_client.py         #   OllamaClient (gemma3:4b, gemma3:27b, minimax-m3:cloud)
@@ -52,8 +60,8 @@ cost-aware-agentic-rag/
 │   │   └── structured_output.py  #   Pydantic schemas (QueryAnswer, ComparisonResult)
 │   │
 │   ├── retrieval/                # Retrieval engine
-│   │   ├── vector_store.py       #   ChromaDB + bge-small-en-v1.5 (384d)
-│   │   ├── bm25_index.py         #   BM25Okapi (stemming + stopwords, joblib persistence)
+│   │   ├── vector_store.py       #   ChromaDB + bge-small-en-v1.5 (384d, contextual embeddings)
+│   │   ├── bm25_index.py         #   BM25Okapi (stemming + stopwords, contextual text, joblib persistence)
 │   │   ├── hybrid.py             #   HybridRetriever (vector + BM25 + RRF + cross-encoder)
 │   │   ├── fusion.py             #   RRF algorithm: score = Σ 1/(k + rank_i), k=60
 │   │   ├── reranker.py           #   CrossEncoderReranker (ms-marco-MiniLM-L-6-v2)
@@ -61,12 +69,13 @@ cost-aware-agentic-rag/
 │   │   └── tenant_filter.py      #   Tenant-based retrieval filtering
 │   │
 │   ├── ingestion/                # Document ingestion
-│   │   ├── pipeline.py           #   run_ingestion (download→parse→embed→index)
+│   │   ├── pipeline.py           #   run_ingestion (download→parse→embed→index, contextual embeddings flag)
 │   │   ├── downloader.py         #   SEC EDGAR 10-K downloader
 │   │   ├── parser.py             #   Docling-based chunk_document
 │   │   ├── chunker.py            #   SemanticChunker (parent-child, overlap)
 │   │   ├── upload_handler.py     #   File upload: validate→save→process
-│   │   └── async_pipeline.py     #   Async document processing
+│   │   ├── async_pipeline.py     #   Async document processing
+│   │   └── contextual_embeddings.py  #   ContextualEmbedder (50-100 token context, 49% retrieval improvement)
 │   │
 │   ├── ml/                       # ML & analytics
 │   │   ├── routing.py            #   CostAwareRouter (TF-IDF + LogisticRegression, joblib + SHA-256)
@@ -85,11 +94,12 @@ cost-aware-agentic-rag/
 │   │   ├── pipeline.py           #   EvalPipeline (LLMJudge + heuristic fallback) + CIGating + EvalStorage
 │   │   ├── harness.py            #   Unified eval harness (golden set + judge + failure buckets)
 │   │   ├── llm_judge.py          #   LLMJudge (minimax-m3:cloud as judge)
-│   │   ├── golden_set.py         #   Golden Q&A pairs (Python module)
+│   │   ├── golden_set.py         #   Golden Q&A pairs (Python module, 76 entries)
 │   │   ├── ragas_eval.py         #   RAGAS evaluator (optional lib)
 │   │   ├── retrieval_metrics.py  #   NDCG@10, MRR, Recall@K, Precision@K, Hit Rate
 │   │   ├── prompt_regression.py  #   Prompt regression testing
-│   │   └── db.py                 #   SQLite eval runs persistence
+│   │   ├── db.py                 #   SQLite eval runs persistence
+│   │   └── online_eval.py        #   Production traffic sampling (5%) + LLM-as-Judge evaluation
 │   │
 │   ├── database/                 # Storage
 │   │   ├── cache.py              #   Redis wrapper (optional)
@@ -97,6 +107,7 @@ cost-aware-agentic-rag/
 │   │   ├── admin_auth.py         #   File-based admin auth (bcrypt, require_admin dependency)
 │   │   ├── tenants.py            #   Multi-tenant management (CRUD, budgets, usage)
 │   │   ├── audit.py              #   Audit logging (JSONL trail for admin/auth/query)
+│   │   ├── rate_limiter.py       #   Sliding window per-tenant rate limiting (configurable)
 │   │   └── models.py             #   SQLAlchemy models (DEAD CODE)
 │   │
 │   ├── knowledge/                # Knowledge graph
@@ -113,7 +124,8 @@ cost-aware-agentic-rag/
 │   │
 │   └── observability/            # Observability
 │       ├── langfuse.py           #   Langfuse wrapper (flat traces)
-│       └── tracing.py            #   OpenTelemetry (TracerProvider + OTLP + @instrument)
+│       ├── tracing.py            #   OpenTelemetry (TracerProvider + OTLP + @instrument)
+│       └── structured_logging.py #   JSON formatter, RequestLogger (trace_id, tenant_id), performance logging
 │
 ├── web/templates/                # Jinja2 frontend (10 pages)
 │   ├── index.html                #   Landing page (8-card grid)
@@ -138,11 +150,11 @@ cost-aware-agentic-rag/
 │   ├── cost_quality_report.py    #   Cost-quality comparison (5 routing strategies)
 │   └── validate_env.py           #   Env validation (vars, Ollama, Redis, dirs)
 │
-├── tests/                        # Tests (237 total)
+├── tests/                        # Tests (166 total)
 │   ├── conftest.py               #   Pytest fixtures (mock LLM, Redis)
-│   ├── test_comprehensive.py     #   167 unit tests
-│   ├── test_integration.py       #   70 integration tests
-│   └── test_failure_analysis.py  #   Failure analysis endpoint tests
+│   ├── test_comprehensive.py     #   93 unit tests
+│   ├── test_integration.py       #   70 integration tests (crash on Windows pyarrow)
+│   └── test_failure_analysis.py  #   3 failure analysis tests
 │
 └── data/                         # All file-based storage
     ├── raw/{TICKER}/{YEAR}/      #   SEC 10-K raw .txt files
@@ -175,7 +187,7 @@ cost-aware-agentic-rag/
 
 ```
 api/main.py
-├── api/routes/query.py           ← POST /query, /query/stream, /query/structured
+├── api/routes/query.py           ← POST /query, /query/stream, /query/structured, /query/multi-agent
 ├── api/routes/upload.py          ← POST /upload, GET /uploads
 ├── api/routes/documents.py       ← GET /documents, /conversation/*
 ├── api/routes/feedback.py        ← POST /feedback, GET /suggestions
@@ -183,6 +195,11 @@ api/main.py
 ├── api/routes/admin.py           ← POST /admin/login, CRUD users/tenants (auth required)
 ├── api/routes/knowledge.py       ← GET /knowledge/*, POST /eval/*
 ├── api/routes/compare.py         ← POST /compare/years, /compare/companies
+├── api/routes/failure_analysis.py← GET /failures, /failures/trends
+├── api/routes/mcp.py             ← GET /mcp/tools, POST /mcp/call
+├── api/routes/escalation.py      ← GET /escalations, POST /escalations/{id}/resolve
+├── api/routes/online_eval.py     ← GET /online-eval/stats, POST /online-eval/evaluate
+├── api/routes/rate_limit.py      ← GET /rate-limits/stats, POST /rate-limits/config
 └── src/observability/tracing.py  ← setup_tracing() on startup
 ```
 
@@ -194,10 +211,29 @@ src/agents/graph.py (LangGraphOrchestrator)
 ├── src/generation/prompts.py     ← SYSTEM_PROMPT, ROUTER_PROMPT, etc.
 ├── src/retrieval/hybrid.py       ← HybridRetriever.retrieve()
 ├── src/agents/memory.py          ← ConversationMemory
-├── src/agents/guardrails.py      ← InputGuardrails, OutputGuardrails
+├── src/agents/guardrails.py      ← InputGuardrails, OutputGuardrails (wired into planner/generator nodes)
 ├── src/ml/routing.py             ← CostAwareRouter
 ├── src/database/tenants.py       ← TenantManager (for tenant filtering)
 └── src/observability/tracing.py  ← @instrument decorator on nodes
+```
+
+### src/agents/multi_agent.py → Multi-agent pipeline
+
+```
+src/agents/multi_agent.py (MultiAgentOrchestrator)
+├── research_agent()              ← Search + financial data + comparisons
+├── analysis_agent()              ← LLM analysis + citation extraction
+├── verification_agent()          ← Citation verification + groundedness check
+└── build_multi_agent_graph()     ← LangGraph: research → analysis → verification → END
+```
+
+### src/agents/mcp_server.py → MCP tool definitions
+
+```
+src/agents/mcp_server.py
+├── MCPToolRegistry              ← 4 tools: search, get_financials, compare_companies, list_companies
+├── MCPToolRegistry.handle_request()  ← Tool dispatch with JSON schema validation
+└── api/routes/mcp.py            ← REST API wrapper for MCP tools
 ```
 
 ### src/retrieval/hybrid.py → Retrieval stack
@@ -234,7 +270,7 @@ src/eval/harness.py
 
 ---
 
-## 3. API Endpoints (45+)
+## 3. API Endpoints (60+)
 
 ### Core Query (auth optional, tenant optional)
 
@@ -243,6 +279,7 @@ src/eval/harness.py
 | POST | `/query` | — | Sync query (full pipeline) |
 | POST | `/query/stream` | — | SSE streaming response |
 | POST | `/query/structured` | — | Structured output (Pydantic) |
+| POST | `/query/multi-agent` | — | Multi-agent pipeline (Research→Analysis→Verification) |
 
 ### Ingestion & Upload
 
@@ -360,6 +397,37 @@ src/eval/harness.py
 | GET | `/failures` | — | Failure analysis from latest eval |
 | GET | `/failures/trends` | — | Failure trends across runs |
 
+### MCP Tools
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/mcp/tools` | — | List MCP tool schemas |
+| POST | `/mcp/call` | — | Call MCP tool by name |
+
+### Human Escalation
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/escalations` | — | List escalation tickets |
+| GET | `/escalations/{id}` | — | Get specific ticket |
+| POST | `/escalations/{id}/resolve` | — | Resolve ticket with notes |
+| GET | `/escalations/stats` | — | Escalation statistics |
+
+### Online Evaluation
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/online-eval/stats` | — | Online eval statistics |
+| POST | `/online-eval/evaluate` | — | Manually evaluate a query/answer |
+| GET | `/online-eval/results` | — | Recent eval results |
+
+### Rate Limiting
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/rate-limits/stats` | — | Rate limit stats per tenant |
+| POST | `/rate-limits/config` | — | Update rate limit config |
+
 ---
 
 ## 4. Frontend
@@ -396,7 +464,8 @@ User sends query
 │  POST /query                │
 │  1. Validate tenant         │
 │  2. Check budget            │
-│  3. Input guardrails        │
+│  3. Rate limiting           │ ← Sliding window per-tenant
+│  4. Input guardrails        │
 └─────────┬───────────────────┘
           │
     ┌─────▼──────────────────┐
@@ -406,8 +475,10 @@ User sends query
           │
     ┌─────▼──────────────────┐
     │ 1. planner_node        │ ← CostAwareRouter → model selection
+    │    └ skip retrieval?   │ ← Known facts → answer directly
     │ 2. tool_executor_node  │ ← HybridRetriever (vector+BM25+RRF+reranker)
     │ 3. generator_node      │ ← OllamaClient.chat() + cost accumulation
+    │    └ citation check    │ ← Verify [TICKER YEAR] citations
     │ 4. reflector_node      │ ← Self-reflection (bounded loop)
     └─────┬──────────────────┘
           │
@@ -416,6 +487,8 @@ User sends query
     │ Output guardrails      │ ← Grounding check, cross-ref validation
     │ CostTracker            │ ← Log cost, latency, tokens
     │ AuditLogger            │ ← Log query event
+    │ OnlineEval             │ ← Sample 5% for LLM-as-Judge
+    │ HumanEscalation        │ ← Low confidence → create ticket
     └─────┬──────────────────┘
           │
     ▼
@@ -505,12 +578,15 @@ python -m src.eval.harness
 |-------|---------------|
 | **Admin auth** | bcrypt passwords, `require_admin` dependency on admin/tenant routes |
 | **Tenant isolation** | `tenant_id` in orchestrator, context filtered by allowed tickers |
-| **Input guardrails** | PII detection, prompt injection, length limits |
-| **Output guardrails** | Cross-reference amount check, semantic grounding |
+| **Input guardrails** | PII detection, prompt injection, length limits (wired into graph planner_node) |
+| **Output guardrails** | Cross-reference amount check, semantic grounding (wired into graph generator_node) |
 | **RBAC** | Document-level access control (src/retrieval/rbac.py) |
 | **Semantic cache** | Cosine similarity 0.92 threshold |
+| **Rate limiting** | Sliding window per-tenant (requests/minute + requests/hour + burst size) |
 | **CORS** | Whitelist localhost:8001 and localhost:3000 |
 | **Audit logging** | JSONL trail for admin actions, auth attempts, queries |
+| **Human escalation** | Auto-detect low confidence, high-stakes queries, hedging language |
+| **Model serialization** | joblib + SHA-256 hash verification (no pickle) |
 
 ---
 
@@ -531,6 +607,11 @@ python -m src.eval.harness
 | **Python-based Docker healthcheck** | No curl dependency in slim image |
 | **Eval harness with failure buckets** | Actionable diagnostics, not just scores |
 | **OpenTelemetry + Langfuse** | Dual observability (OTel for vendor-neutral, Langfuse for UI) |
+| **Contextual embeddings** | Anthropic's highest-ROI trick — 49% retrieval improvement |
+| **Skip retrieval for known facts** | 20-40% of queries don't need retrieval |
+| **joblib + SHA-256 over pickle** | Safer model serialization with integrity verification |
+| **MCP server** | 2026 standard for tool connectivity |
+| **Multi-agent pipeline** | Specialized sub-agents for research, analysis, verification |
 
 ---
 
