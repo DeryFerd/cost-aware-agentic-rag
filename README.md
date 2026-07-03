@@ -1,6 +1,6 @@
 # Cost-Aware Agentic RAG
 
-Production-shaped Agentic RAG prototype for SEC 10-K Financial Document Analysis with cost-aware model routing. Uses a trained ML classifier to route queries by complexity, hybrid retrieval with RRF fusion, cross-encoder reranking, and a LangGraph-based agentic loop with self-reflection.
+Production-shaped Agentic RAG prototype for SEC 10-K Financial Document Analysis with cost-aware model routing. Uses a trained ML classifier to route queries by complexity, hybrid retrieval with RRF fusion, cross-encoder reranking, and a LangGraph-based agentic loop with self-reflection technique.
 
 ## Architecture
 
